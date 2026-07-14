@@ -9,5 +9,6 @@
     <AssemblyName>AutoClicker</AssemblyName>
     <RootNamespace>AutoClicker</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>app.ico</ApplicationIcon>
   </PropertyGroup>
 </Project>

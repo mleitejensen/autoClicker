@@ -143,6 +143,11 @@ public class MainForm : Form
         FormBorderStyle = FormBorderStyle.FixedSingle;
         MaximizeBox     = false;
         StartPosition   = FormStartPosition.CenterScreen;
+        Icon? appIcon   = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+        if (appIcon is not null)
+        {
+            Icon = appIcon;
+        }
 
         // Build all controls and assign them to readonly fields.
         (
