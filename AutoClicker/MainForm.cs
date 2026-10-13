@@ -1,7 +1,9 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.IO;
 using System.Runtime.InteropServices;
+using System.Text.Json;
 using System.Windows.Forms;
 
 namespace AutoClicker;
@@ -11,319 +13,235 @@ namespace AutoClicker;
 /// set a repeat interval, then start/stop auto-clicking via UI buttons or the
 /// global hotkeys F6 (Start) and F7 (Stop).
 /// </summary>
-public class MainForm : Form
+public partial class MainForm : Form
 {
-    #region Win32 API – SendInput
+    private const int HOTKEY_START_ID = 1;
+    private const int HOTKEY_STOP_ID  = 2;
+    private const int HOTKEY_REC_ID   = 3;
+    private const int HOTKEY_PLAY_ID  = 4;
 
-    private const int INPUT_MOUSE    = 0;
-    private const int INPUT_KEYBOARD = 1;
+    private static readonly string SettingsPath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "AutoClicker", "settings.json");
 
-    private const uint MOUSEEVENTF_LEFTDOWN   = 0x0002;
-    private const uint MOUSEEVENTF_LEFTUP     = 0x0004;
-    private const uint MOUSEEVENTF_RIGHTDOWN  = 0x0008;
-    private const uint MOUSEEVENTF_RIGHTUP    = 0x0010;
-    private const uint MOUSEEVENTF_MIDDLEDOWN = 0x0020;
-    private const uint MOUSEEVENTF_MIDDLEUP   = 0x0040;
-    private const uint KEYEVENTF_KEYUP        = 0x0002;
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct MOUSEINPUT
-    {
-        public int    dx, dy;
-        public uint   mouseData;
-        public uint   dwFlags;
-        public uint   time;
-        public UIntPtr dwExtraInfo;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct KEYBDINPUT
-    {
-        public ushort wVk;
-        public ushort wScan;
-        public uint   dwFlags;
-        public uint   time;
-        public UIntPtr dwExtraInfo;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct HARDWAREINPUT
-    {
-        public uint   uMsg;
-        public ushort wParamL;
-        public ushort wParamH;
-    }
-
-    [StructLayout(LayoutKind.Explicit)]
-    private struct InputUnion
-    {
-        [FieldOffset(0)] public MOUSEINPUT    mi;
-        [FieldOffset(0)] public KEYBDINPUT    ki;
-        [FieldOffset(0)] public HARDWAREINPUT hi;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct INPUT
-    {
-        public uint       type;
-        public InputUnion u;
-    }
-
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
-
-    #endregion
-
-    #region Win32 API – Global Hotkeys
-
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
-
-    private const int  WM_HOTKEY       = 0x0312;
-    private const int  HOTKEY_START_ID = 1;
-    private const int  HOTKEY_STOP_ID  = 2;
-    private const uint VK_F6           = 0x75;
-    private const uint VK_F7           = 0x76;
-    private const uint MOD_NONE        = 0x0000;
-
-    #endregion
+    public enum AppMode { AutoClicker, Macro }
+    private AppMode _currentMode = AppMode.AutoClicker;
 
     #region UI Controls
 
-    private readonly RadioButton   _mouseRadio;
-    private readonly RadioButton   _keyboardRadio;
-    private readonly Label         _inputLabel;
-    private readonly ComboBox      _mouseButtonCombo;
-    private readonly ComboBox      _keyCombo;
-    private readonly NumericUpDown _intervalNumeric;
-    private readonly Button        _startButton;
-    private readonly Button        _stopButton;
-    private readonly Label         _statusLabel;
+    // Tabs & views
+    private RadioButton   _tabClickerRadio = null!;
+    private RadioButton   _tabMacroRadio = null!;
+    private Panel         _clickerContainerPanel = null!;
+    private Panel         _macroContainerPanel = null!;
+
+    // Input card
+    private RadioButton   _mouseRadio = null!;
+    private RadioButton   _keyboardRadio = null!;
+    private ComboBox      _mouseButtonCombo = null!;
+    private ComboBox      _mouseClickTypeCombo = null!;
+    private ComboBox      _keyCombo = null!;
+    private CheckBox      _keyCtrlCheck = null!;
+    private CheckBox      _keyShiftCheck = null!;
+    private CheckBox      _keyAltCheck = null!;
+    private Panel         _mouseOptionsPanel = null!;
+    private Panel         _keyboardOptionsPanel = null!;
+
+    // Location card
+    private RadioButton   _locationCursorRadio = null!;
+    private RadioButton   _locationFixedRadio = null!;
+    private Panel         _fixedLocationPanel = null!;
+    private NumericUpDown _fixedXNumeric = null!;
+    private NumericUpDown _fixedYNumeric = null!;
+    private Button        _pickCoordsButton = null!;
+    private CheckBox      _jitterCheck = null!;
+    private NumericUpDown _jitterNumeric = null!;
+
+    // Interval card
+    private NumericUpDown _intervalNumeric = null!;
+    private CheckBox      _randomIntervalCheckBox = null!;
+    private Panel         _intervalRangePanel = null!;
+    private NumericUpDown _minimumIntervalNumeric = null!;
+    private NumericUpDown _maximumIntervalNumeric = null!;
+    private Panel         _intervalCard = null!;
+
+    // Limits & timing card
+    private NumericUpDown _startDelayNumeric = null!;
+    private CheckBox      _holdCheckBox = null!;
+    private CheckBox      _limitCheckBox = null!;
+    private NumericUpDown _limitNumeric = null!;
+    private ComboBox      _limitUnitCombo = null!;
+
+    // Hotkeys & window settings card
+    private ComboBox      _hotkeyStartCombo = null!;
+    private ComboBox      _hotkeyStopCombo = null!;
+    private CheckBox      _alwaysOnTopCheck = null!;
+    private CheckBox      _pauseOnMoveCheck = null!;
+    private CheckBox      _closeToTrayCheck = null!;
+
+    // Action buttons & status
+    private Button        _startButton = null!;
+    private Button        _stopButton = null!;
+    private Label         _statusLabel = null!;
+
+    // Macro controls
+    private Button        _macroRecButton = null!;
+    private Button        _macroPlayButton = null!;
+    private Label         _macroInfoLabel = null!;
+    private Button        _macroClearButton = null!;
+    private ComboBox      _macroSpeedCombo = null!;
+    private ComboBox      _macroRepeatCombo = null!;
+    private CheckBox      _macroMouseMoveCheck = null!;
+    private CheckBox      _macroPauseOnMoveCheck = null!;
+    private Button        _macroLoadButton = null!;
+    private Button        _macroSaveButton = null!;
+    private Label         _macroFileLabel = null!;
+    private ComboBox      _hotkeyRecCombo = null!;
+    private ComboBox      _hotkeyPlayCombo = null!;
+
+    // Tray icon
+    private NotifyIcon    _trayIcon = null!;
 
     #endregion
 
-    private readonly System.Windows.Forms.Timer _clickTimer;
-    private bool _isRunning;
+    private enum Phase { Idle, Countdown, Running }
 
-    // Mapping of display names to Keys enum values for keyboard mode.
-    // F6 and F7 are deliberately excluded because they are used as hotkeys.
-    private static readonly Dictionary<string, Keys> KeyMap = new()
-    {
-        ["Space"]  = Keys.Space,
-        ["Enter"]  = Keys.Enter,
-        ["Tab"]    = Keys.Tab,
-        ["Escape"] = Keys.Escape,
-        ["Left"]   = Keys.Left,
-        ["Right"]  = Keys.Right,
-        ["Up"]     = Keys.Up,
-        ["Down"]   = Keys.Down,
-        ["A"] = Keys.A, ["B"] = Keys.B, ["C"] = Keys.C, ["D"] = Keys.D,
-        ["E"] = Keys.E, ["F"] = Keys.F, ["G"] = Keys.G, ["H"] = Keys.H,
-        ["I"] = Keys.I, ["J"] = Keys.J, ["K"] = Keys.K, ["L"] = Keys.L,
-        ["M"] = Keys.M, ["N"] = Keys.N, ["O"] = Keys.O, ["P"] = Keys.P,
-        ["Q"] = Keys.Q, ["R"] = Keys.R, ["S"] = Keys.S, ["T"] = Keys.T,
-        ["U"] = Keys.U, ["V"] = Keys.V, ["W"] = Keys.W, ["X"] = Keys.X,
-        ["Y"] = Keys.Y, ["Z"] = Keys.Z,
-        ["0"] = Keys.D0, ["1"] = Keys.D1, ["2"] = Keys.D2, ["3"] = Keys.D3,
-        ["4"] = Keys.D4, ["5"] = Keys.D5, ["6"] = Keys.D6, ["7"] = Keys.D7,
-        ["8"] = Keys.D8, ["9"] = Keys.D9,
-        ["F1"]  = Keys.F1,  ["F2"]  = Keys.F2,  ["F3"]  = Keys.F3,
-        ["F4"]  = Keys.F4,  ["F5"]  = Keys.F5,  ["F8"]  = Keys.F8,
-        ["F9"]  = Keys.F9,  ["F10"] = Keys.F10, ["F11"] = Keys.F11,
-        ["F12"] = Keys.F12,
-    };
+    private Phase  _phase = Phase.Idle;
+    private long   _countdownEndTicks;
+    private long   _runStartTicks;
+    private int    _clickCount;
+    private Action? _releaseHeld;
+
+    // Movement monitoring
+    private Point  _lastTrackedMousePoint;
+
+    // High-resolution click timer + lightweight UI update timer
+    private readonly HighResTimer _highResTimer = new();
+    private readonly System.Windows.Forms.Timer _statusTimer = new() { Interval = 100 };
+
+    // Macro recorder and player
+    private readonly InputRecorder _inputRecorder = new();
+    private readonly MacroPlayer   _macroPlayer   = new();
+    private MacroSequence          _currentMacro  = new();
+    private string?                _lastLoadedMacroPath;
 
     public MainForm()
     {
         Text            = "AutoClicker";
-        Size            = new Size(360, 330);
         FormBorderStyle = FormBorderStyle.FixedSingle;
         MaximizeBox     = false;
         StartPosition   = FormStartPosition.CenterScreen;
-        Icon? appIcon   = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
-        if (appIcon is not null)
+
+        Icon? appIcon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+        if (appIcon is not null) Icon = appIcon;
+
+        BuildUI();
+        BuildTrayIcon(appIcon);
+
+        _statusTimer.Tick += OnStatusTick;
+
+        _inputRecorder.ActionRecorded += OnMacroActionRecorded;
+        _macroPlayer.ProgressChanged += OnMacroPlaybackProgress;
+        _macroPlayer.PlaybackFinished += OnMacroPlaybackFinished;
+
+        LoadSettings();
+
+        Load += (_, _) =>
         {
-            Icon = appIcon;
-        }
-
-        // Build all controls and assign them to readonly fields.
-        (
-            _mouseRadio, _keyboardRadio, _inputLabel,
-            _mouseButtonCombo, _keyCombo,
-            _intervalNumeric,
-            _startButton, _stopButton,
-            _statusLabel
-        ) = BuildUI();
-
-        _clickTimer      = new System.Windows.Forms.Timer();
-        _clickTimer.Tick += OnTimerTick;
-
-        Load        += (_, _) => RegisterHotkeys();
-        FormClosing += (_, _) => { UnregisterHotkeys(); _clickTimer.Stop(); };
+            RegisterConfiguredHotkeys();
+            UpdateMacroButtonLabels();
+            UpdateMacroInfo();
+        };
+        FormClosing += OnFormClosing;
     }
 
-    // -------------------------------------------------------------------------
-    // UI Construction
-    // -------------------------------------------------------------------------
-
-    private (
-        RadioButton mouseRadio, RadioButton keyboardRadio, Label inputLabel,
-        ComboBox mouseButtonCombo, ComboBox keyCombo,
-        NumericUpDown intervalNumeric,
-        Button startButton, Button stopButton,
-        Label statusLabel
-    ) BuildUI()
+    protected override void OnHandleCreated(EventArgs e)
     {
-        const int pad = 12;
-        int y = pad;
-
-        // --- Input type group ---
-        var inputGroup = new GroupBox
-        {
-            Text     = "Input Type",
-            Location = new Point(pad, y),
-            Size     = new Size(320, 55),
-        };
-        var mouseRadio    = new RadioButton { Text = "Mouse Button", Location = new Point(10, 22), AutoSize = true, Checked = true };
-        var keyboardRadio = new RadioButton { Text = "Keyboard Key", Location = new Point(165, 22), AutoSize = true };
-        inputGroup.Controls.Add(mouseRadio);
-        inputGroup.Controls.Add(keyboardRadio);
-        Controls.Add(inputGroup);
-        y += inputGroup.Height + pad;
-
-        // --- Input selector row ---
-        var inputLabel = new Label { Text = "Mouse Button:", Location = new Point(pad, y + 4), AutoSize = true };
-
-        var mouseButtonCombo = new ComboBox
-        {
-            Location      = new Point(135, y),
-            Size          = new Size(185, 25),
-            DropDownStyle = ComboBoxStyle.DropDownList,
-        };
-        mouseButtonCombo.Items.AddRange(new object[] { "Left", "Right", "Middle" });
-        mouseButtonCombo.SelectedIndex = 0;
-
-        var keyCombo = new ComboBox
-        {
-            Location      = new Point(135, y),
-            Size          = new Size(185, 25),
-            DropDownStyle = ComboBoxStyle.DropDownList,
-            Visible       = false,
-        };
-        foreach (var k in KeyMap.Keys) keyCombo.Items.Add(k);
-        keyCombo.SelectedIndex = 0;
-
-        Controls.Add(inputLabel);
-        Controls.Add(mouseButtonCombo);
-        Controls.Add(keyCombo);
-        y += 35;
-
-        // Wire radio buttons now that the combos exist.
-        mouseRadio.CheckedChanged    += (_, _) => UpdateControls(mouseRadio, inputLabel, mouseButtonCombo, keyCombo);
-        keyboardRadio.CheckedChanged += (_, _) => UpdateControls(mouseRadio, inputLabel, mouseButtonCombo, keyCombo);
-
-        // --- Interval row ---
-        var intervalLabel = new Label { Text = "Interval (ms):", Location = new Point(pad, y + 4), AutoSize = true };
-        var intervalNumeric = new NumericUpDown
-        {
-            Location  = new Point(135, y),
-            Size      = new Size(100, 25),
-            Minimum   = 10,
-            Maximum   = 60000,
-            Value     = 100,
-            Increment = 10,
-        };
-        Controls.Add(intervalLabel);
-        Controls.Add(intervalNumeric);
-        y += 35 + pad;
-
-        // --- Start / Stop buttons ---
-        var startButton = new Button
-        {
-            Text     = "▶  Start  (F6)",
-            Location = new Point(pad, y),
-            Size     = new Size(140, 36),
-        };
-
-        var stopButton = new Button
-        {
-            Text     = "■  Stop  (F7)",
-            Location = new Point(pad + 150, y),
-            Size     = new Size(140, 36),
-            Enabled  = false,
-        };
-
-        Controls.Add(startButton);
-        Controls.Add(stopButton);
-        y += 46 + pad;
-
-        // --- Status label ---
-        var statusLabel = new Label
-        {
-            Text      = "● Stopped",
-            Location  = new Point(pad, y),
-            AutoSize  = true,
-            ForeColor = Color.DarkRed,
-            Font      = new Font(Font.FontFamily, 10, FontStyle.Bold),
-        };
-        Controls.Add(statusLabel);
-
-        return (mouseRadio, keyboardRadio, inputLabel,
-                mouseButtonCombo, keyCombo,
-                intervalNumeric,
-                startButton, stopButton,
-                statusLabel);
-    }
-
-    private static void UpdateControls(
-        RadioButton mouseRadio,
-        Label       inputLabel,
-        ComboBox    mouseButtonCombo,
-        ComboBox    keyCombo)
-    {
-        bool isMouse             = mouseRadio.Checked;
-        inputLabel.Text          = isMouse ? "Mouse Button:" : "Keyboard Key:";
-        mouseButtonCombo.Visible = isMouse;
-        keyCombo.Visible         = !isMouse;
+        base.OnHandleCreated(e);
+        int enabled = 1;
+        NativeMethods.DwmSetWindowAttribute(Handle, NativeMethods.DWMWA_USE_IMMERSIVE_DARK_MODE, ref enabled, sizeof(int));
     }
 
     // -------------------------------------------------------------------------
     // Global Hotkeys
     // -------------------------------------------------------------------------
 
-    private void RegisterHotkeys()
+    private void RegisterConfiguredHotkeys()
     {
-        if (!RegisterHotKey(Handle, HOTKEY_START_ID, MOD_NONE, VK_F6))
-            MessageBox.Show(
-                "Could not register F6 as the Start hotkey.\nAnother application may be using it.",
-                "Hotkey Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        UnregisterHotkeys();
 
-        if (!RegisterHotKey(Handle, HOTKEY_STOP_ID, MOD_NONE, VK_F7))
-            MessageBox.Show(
-                "Could not register F7 as the Stop hotkey.\nAnother application may be using it.",
-                "Hotkey Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        string startKeyName = _hotkeyStartCombo?.SelectedItem?.ToString() ?? "F6";
+        string stopKeyName  = _hotkeyStopCombo?.SelectedItem?.ToString()  ?? "F7";
+        string recKeyName   = _hotkeyRecCombo?.SelectedItem?.ToString()   ?? "F8";
+        string playKeyName  = _hotkeyPlayCombo?.SelectedItem?.ToString()  ?? "F9";
+
+        var registered = new HashSet<Keys>();
+
+        if (KeyRegistry.HotkeyKeys.TryGetValue(startKeyName, out var startKey) && registered.Add(startKey))
+        {
+            NativeMethods.RegisterHotKey(Handle, HOTKEY_START_ID, NativeMethods.MOD_NONE, (uint)startKey);
+        }
+
+        if (KeyRegistry.HotkeyKeys.TryGetValue(stopKeyName, out var stopKey) && registered.Add(stopKey))
+        {
+            NativeMethods.RegisterHotKey(Handle, HOTKEY_STOP_ID, NativeMethods.MOD_NONE, (uint)stopKey);
+        }
+
+        if (KeyRegistry.HotkeyKeys.TryGetValue(recKeyName, out var recKey) && registered.Add(recKey))
+        {
+            NativeMethods.RegisterHotKey(Handle, HOTKEY_REC_ID, NativeMethods.MOD_NONE, (uint)recKey);
+        }
+
+        if (KeyRegistry.HotkeyKeys.TryGetValue(playKeyName, out var playKey) && registered.Add(playKey))
+        {
+            NativeMethods.RegisterHotKey(Handle, HOTKEY_PLAY_ID, NativeMethods.MOD_NONE, (uint)playKey);
+        }
     }
 
     private void UnregisterHotkeys()
     {
-        UnregisterHotKey(Handle, HOTKEY_START_ID);
-        UnregisterHotKey(Handle, HOTKEY_STOP_ID);
+        NativeMethods.UnregisterHotKey(Handle, HOTKEY_START_ID);
+        NativeMethods.UnregisterHotKey(Handle, HOTKEY_STOP_ID);
+        NativeMethods.UnregisterHotKey(Handle, HOTKEY_REC_ID);
+        NativeMethods.UnregisterHotKey(Handle, HOTKEY_PLAY_ID);
     }
 
     protected override void WndProc(ref Message m)
     {
-        if (m.Msg == WM_HOTKEY)
+        if (m.Msg == NativeMethods.WM_HOTKEY)
         {
             switch (m.WParam.ToInt32())
             {
-                case HOTKEY_START_ID: StartClicking(); break;
-                case HOTKEY_STOP_ID:  StopClicking();  break;
+                case HOTKEY_START_ID:
+                    if (_currentMode == AppMode.AutoClicker)
+                    {
+                        if (_phase == Phase.Idle) StartClicking(); else StopClicking();
+                    }
+                    break;
+                case HOTKEY_STOP_ID:
+                    StopAll();
+                    break;
+                case HOTKEY_REC_ID:
+                    ToggleMacroRecording();
+                    break;
+                case HOTKEY_PLAY_ID:
+                    ToggleMacroPlayback();
+                    break;
             }
         }
         base.WndProc(ref m);
+    }
+
+    private void StopAll()
+    {
+        if (_phase != Phase.Idle)
+            StopClicking();
+
+        if (_inputRecorder.IsRecording)
+            StopMacroRecording();
+
+        if (_macroPlayer.IsPlaying)
+            StopMacroPlayback();
     }
 
     // -------------------------------------------------------------------------
@@ -332,66 +250,525 @@ public class MainForm : Form
 
     private void StartClicking()
     {
-        if (_isRunning) return;
-        _isRunning             = true;
-        _clickTimer.Interval   = (int)_intervalNumeric.Value;
-        _clickTimer.Start();
-        _startButton.Enabled   = false;
-        _stopButton.Enabled    = true;
-        _statusLabel.Text      = "● Running";
-        _statusLabel.ForeColor = Color.DarkGreen;
+        if (_phase != Phase.Idle) return;
+
+        _startButton.Enabled = false;
+        _stopButton.Enabled  = true;
+        _clickCount          = 0;
+
+        int delaySeconds = (int)_startDelayNumeric.Value;
+        if (delaySeconds > 0)
+        {
+            _phase             = Phase.Countdown;
+            _countdownEndTicks = Environment.TickCount64 + delaySeconds * 1000L;
+            _statusTimer.Start();
+            UpdateStatus();
+        }
+        else
+        {
+            BeginRunning();
+        }
     }
 
-    private void StopClicking()
+    private void BeginRunning()
     {
-        if (!_isRunning) return;
-        _isRunning             = false;
-        _clickTimer.Stop();
-        _startButton.Enabled   = true;
-        _stopButton.Enabled    = false;
-        _statusLabel.Text      = "● Stopped";
-        _statusLabel.ForeColor = Color.DarkRed;
+        _phase         = Phase.Running;
+        _runStartTicks = Environment.TickCount64;
+
+        if (NativeMethods.GetCursorPos(out var pt))
+            _lastTrackedMousePoint = new Point(pt.x, pt.y);
+
+        if (_holdCheckBox.Checked)
+        {
+            _releaseHeld = PressAndHold();
+        }
+        else
+        {
+            _highResTimer.Start(OnHighResTick, GetNextInterval);
+        }
+
+        _statusTimer.Start();
+        UpdateStatus();
+    }
+
+    private void StopClicking(bool finished = false, string? reason = null)
+    {
+        if (_phase == Phase.Idle) return;
+
+        _highResTimer.Stop();
+        _statusTimer.Stop();
+        _releaseHeld?.Invoke();
+        _releaseHeld = null;
+
+        bool hadRun = _phase == Phase.Running;
+        _phase               = Phase.Idle;
+        _startButton.Enabled = true;
+        _stopButton.Enabled  = false;
+
+        string summary = hadRun && _clickCount > 0 ? $" · {_clickCount} CLICKS" : string.Empty;
+        if (reason is not null)
+        {
+            _statusLabel.Text      = $"PAUSED ({reason.ToUpperInvariant()}){summary}";
+            _statusLabel.ForeColor = Theme.AccentOrange;
+        }
+        else
+        {
+            _statusLabel.Text      = (finished ? "FINISHED" : "STOPPED") + summary;
+            _statusLabel.ForeColor = finished ? Theme.AccentBlue : Theme.TextMuted;
+        }
+    }
+
+    private void UpdateStatus()
+    {
+        switch (_phase)
+        {
+            case Phase.Countdown:
+                long remainingMs = _countdownEndTicks - Environment.TickCount64;
+                _statusLabel.Text      = $"STARTING IN {Math.Max(1, (remainingMs + 999) / 1000)}S…";
+                _statusLabel.ForeColor = Theme.AccentOrange;
+                break;
+            case Phase.Running:
+                _statusLabel.Text = _releaseHeld is not null
+                    ? "HOLDING"
+                    : $"RUNNING · {_clickCount} CLICKS";
+                _statusLabel.ForeColor = Theme.AccentGreen;
+                break;
+        }
+    }
+
+    private void OnStatusTick(object? sender, EventArgs e)
+    {
+        if (_inputRecorder.IsRecording)
+        {
+            long ms = _inputRecorder.CurrentDurationMs;
+            int count = _inputRecorder.CurrentActionCount;
+            _statusLabel.Text = $"RECORDING · {count} ACTIONS ({ms / 1000.0:F1}S)";
+            _statusLabel.ForeColor = Theme.Danger;
+            _macroInfoLabel.Text = $"{count} ACTIONS RECORDED ({ms / 1000.0:F1}S)...";
+            return;
+        }
+
+        if (_phase == Phase.Countdown)
+        {
+            if (Environment.TickCount64 >= _countdownEndTicks) BeginRunning();
+            else UpdateStatus();
+            return;
+        }
+
+        if (_phase != Phase.Running) return;
+
+        // Safety check: pause on mouse move
+        if (_pauseOnMoveCheck.Checked && NativeMethods.GetCursorPos(out var currentPt))
+        {
+            int dx = Math.Abs(currentPt.x - _lastTrackedMousePoint.X);
+            int dy = Math.Abs(currentPt.y - _lastTrackedMousePoint.Y);
+            if (dx > 15 || dy > 15)
+            {
+                StopClicking(finished: false, reason: "mouse moved");
+                return;
+            }
+        }
+
+        // Duration limit check
+        if (_limitCheckBox.Checked && _limitUnitCombo.SelectedItem?.ToString() == "seconds"
+            && Environment.TickCount64 - _runStartTicks >= (long)_limitNumeric.Value * 1000)
+        {
+            StopClicking(finished: true);
+            return;
+        }
+
+        UpdateStatus();
     }
 
     // -------------------------------------------------------------------------
-    // Input simulation via SendInput
+    // Execution (called from high-res timer thread)
     // -------------------------------------------------------------------------
 
-    private void OnTimerTick(object? sender, EventArgs e)
+    private void OnHighResTick()
+    {
+        ExecuteSingleAction();
+
+        _clickCount++;
+
+        if (NativeMethods.GetCursorPos(out var pt))
+            _lastTrackedMousePoint = new Point(pt.x, pt.y);
+
+        if (_limitCheckBox.Checked && _limitUnitCombo.SelectedItem?.ToString() == "clicks"
+            && _clickCount >= (int)_limitNumeric.Value)
+        {
+            BeginInvoke(new Action(() => StopClicking(finished: true)));
+        }
+    }
+
+    private void ExecuteSingleAction()
     {
         if (_mouseRadio.Checked)
-            SimulateMouseClick(_mouseButtonCombo.SelectedItem?.ToString() ?? "Left");
+        {
+            string button     = _mouseButtonCombo.SelectedItem?.ToString() ?? "Left";
+            string clickType  = _mouseClickTypeCombo.SelectedItem?.ToString() ?? "Single";
+            string locMode    = _locationFixedRadio.Checked ? "Fixed" : "Cursor";
+            int fixedX        = (int)_fixedXNumeric.Value;
+            int fixedY        = (int)_fixedYNumeric.Value;
+            bool jitter       = _jitterCheck.Checked;
+            int jitterRadius  = (int)_jitterNumeric.Value;
+
+            InputSimulator.ClickMouse(button, clickType, locMode, fixedX, fixedY, jitter, jitterRadius);
+        }
         else
-            SimulateKeyPress(_keyCombo.SelectedItem?.ToString() ?? "Space");
+        {
+            string key   = _keyCombo.SelectedItem?.ToString() ?? "Space";
+            bool ctrl    = _keyCtrlCheck.Checked;
+            bool shift   = _keyShiftCheck.Checked;
+            bool alt     = _keyAltCheck.Checked;
+
+            InputSimulator.PressKey(key, ctrl, shift, alt);
+        }
     }
 
-    private static void SimulateMouseClick(string button)
+    private Action PressAndHold()
     {
-        (uint downFlag, uint upFlag) = button switch
+        if (_mouseRadio.Checked)
         {
-            "Right"  => (MOUSEEVENTF_RIGHTDOWN,  MOUSEEVENTF_RIGHTUP),
-            "Middle" => (MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP),
-            _        => (MOUSEEVENTF_LEFTDOWN,   MOUSEEVENTF_LEFTUP),
-        };
+            string button    = _mouseButtonCombo.SelectedItem?.ToString() ?? "Left";
+            string locMode   = _locationFixedRadio.Checked ? "Fixed" : "Cursor";
+            int fixedX       = (int)_fixedXNumeric.Value;
+            int fixedY       = (int)_fixedYNumeric.Value;
+            bool jitter      = _jitterCheck.Checked;
+            int jitterRadius = (int)_jitterNumeric.Value;
 
-        var inputs = new INPUT[]
+            return InputSimulator.HoldMouse(button, locMode, fixedX, fixedY, jitter, jitterRadius);
+        }
+        else
         {
-            new INPUT { type = INPUT_MOUSE, u = new InputUnion { mi = new MOUSEINPUT { dwFlags = downFlag } } },
-            new INPUT { type = INPUT_MOUSE, u = new InputUnion { mi = new MOUSEINPUT { dwFlags = upFlag   } } },
-        };
-        SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<INPUT>());
+            string key = _keyCombo.SelectedItem?.ToString() ?? "Space";
+            bool ctrl  = _keyCtrlCheck.Checked;
+            bool shift = _keyShiftCheck.Checked;
+            bool alt   = _keyAltCheck.Checked;
+
+            return InputSimulator.HoldKey(key, ctrl, shift, alt);
+        }
     }
 
-    private static void SimulateKeyPress(string keyName)
+    private int GetNextInterval()
     {
-        if (!KeyMap.TryGetValue(keyName, out var key)) return;
+        if (!_randomIntervalCheckBox.Checked)
+            return (int)_intervalNumeric.Value;
 
-        ushort vk = (ushort)key;
-        var inputs = new INPUT[]
-        {
-            new INPUT { type = INPUT_KEYBOARD, u = new InputUnion { ki = new KEYBDINPUT { wVk = vk, dwFlags = 0              } } },
-            new INPUT { type = INPUT_KEYBOARD, u = new InputUnion { ki = new KEYBDINPUT { wVk = vk, dwFlags = KEYEVENTF_KEYUP } } },
-        };
-        SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<INPUT>());
+        int minimum = (int)_minimumIntervalNumeric.Value;
+        int maximum = (int)_maximumIntervalNumeric.Value;
+        return Random.Shared.Next(minimum, maximum + 1);
     }
+
+    // -------------------------------------------------------------------------
+    // Macro Recording & Playback (TinyTask style)
+    // -------------------------------------------------------------------------
+
+    private void ToggleMacroRecording()
+    {
+        if (_inputRecorder.IsRecording)
+        {
+            StopMacroRecording();
+        }
+        else
+        {
+            StartMacroRecording();
+        }
+    }
+
+    private void StartMacroRecording()
+    {
+        if (_inputRecorder.IsRecording) return;
+        if (_phase != Phase.Idle) StopClicking();
+        if (_macroPlayer.IsPlaying) StopMacroPlayback();
+
+        var excluded = new List<Keys>();
+        string recHk  = _hotkeyRecCombo?.SelectedItem?.ToString()  ?? "F8";
+        string playHk = _hotkeyPlayCombo?.SelectedItem?.ToString() ?? "F9";
+        string stopHk = _hotkeyStopCombo?.SelectedItem?.ToString() ?? "F7";
+        if (KeyRegistry.HotkeyKeys.TryGetValue(recHk, out var k1)) excluded.Add(k1);
+        if (KeyRegistry.HotkeyKeys.TryGetValue(playHk, out var k2)) excluded.Add(k2);
+        if (KeyRegistry.HotkeyKeys.TryGetValue(stopHk, out var k3)) excluded.Add(k3);
+
+        bool recMouseMove = _macroMouseMoveCheck?.Checked ?? true;
+        _inputRecorder.Start(recMouseMove, excluded);
+
+        Theme.SetButtonActiveState(_macroRecButton, true, Theme.Danger, $"⏹  STOP REC ({recHk})", $"⏺  RECORD ({recHk})");
+        _macroPlayButton.Enabled = false;
+
+        _statusLabel.Text = "RECORDING MACRO...";
+        _statusLabel.ForeColor = Theme.Danger;
+
+        _statusTimer.Start();
+
+        if (WindowState == FormWindowState.Minimized || !Visible)
+        {
+            _trayIcon.ShowBalloonTip(1000, "AutoClicker Macro", $"Recording started. Press {recHk} or {stopHk} to stop.", ToolTipIcon.Info);
+        }
+    }
+
+    private void StopMacroRecording()
+    {
+        if (!_inputRecorder.IsRecording) return;
+
+        _currentMacro = _inputRecorder.Stop();
+
+        UpdateMacroButtonLabels();
+        _macroPlayButton.Enabled = _currentMacro.Actions.Count > 0;
+
+        UpdateMacroInfo();
+
+        _statusLabel.Text = $"RECORDED {_currentMacro.Actions.Count} ACTIONS ({_currentMacro.TotalDurationMs / 1000.0:F1}S)";
+        _statusLabel.ForeColor = Theme.AccentBlue;
+
+        string recHk = _hotkeyRecCombo?.SelectedItem?.ToString() ?? "F8";
+        if (WindowState == FormWindowState.Minimized || !Visible)
+        {
+            _trayIcon.ShowBalloonTip(1000, "AutoClicker Macro", $"Recording finished: {_currentMacro.Actions.Count} actions.", ToolTipIcon.Info);
+        }
+    }
+
+    private void ToggleMacroPlayback()
+    {
+        if (_macroPlayer.IsPlaying)
+        {
+            StopMacroPlayback();
+        }
+        else
+        {
+            StartMacroPlayback();
+        }
+    }
+
+    private void StartMacroPlayback()
+    {
+        if (_macroPlayer.IsPlaying) return;
+        if (_currentMacro == null || _currentMacro.Actions.Count == 0)
+        {
+            MessageBox.Show("No macro recorded yet. Click Record or open a macro file first.", "Macro Playback", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        if (_phase != Phase.Idle) StopClicking();
+        if (_inputRecorder.IsRecording) StopMacroRecording();
+
+        double speed = ParseSpeedMultiplier(_macroSpeedCombo?.SelectedItem?.ToString());
+        int repeat   = ParseRepeatCount(_macroRepeatCombo?.SelectedItem?.ToString());
+        bool pauseOnMove = _macroPauseOnMoveCheck?.Checked ?? true;
+
+        string playHk = _hotkeyPlayCombo?.SelectedItem?.ToString() ?? "F9";
+        Theme.SetButtonActiveState(_macroPlayButton, true, Theme.AccentGreen, $"⏹  STOP PLAY ({playHk})", $"▶  PLAY ({playHk})");
+        _macroRecButton.Enabled = false;
+
+        _statusLabel.Text = "PLAYING MACRO...";
+        _statusLabel.ForeColor = Theme.AccentGreen;
+
+        string stopHk = _hotkeyStopCombo?.SelectedItem?.ToString() ?? "F7";
+        if (WindowState == FormWindowState.Minimized || !Visible)
+        {
+            _trayIcon.ShowBalloonTip(1000, "AutoClicker Macro", $"Playback started. Press {playHk} or {stopHk} to stop.", ToolTipIcon.Info);
+        }
+
+        _macroPlayer.Play(_currentMacro, speed, repeat, pauseOnMove);
+    }
+
+    private void StopMacroPlayback(string? reason = null)
+    {
+        if (!_macroPlayer.IsPlaying) return;
+        _macroPlayer.Stop(reason);
+    }
+
+    private void OnMacroActionRecorded(int count, long durationMs)
+    {
+        // Continuous updates handled in OnStatusTick
+    }
+
+    private void OnMacroPlaybackProgress(int current, int total, int loop)
+    {
+        if (IsDisposed || Disposing) return;
+        try
+        {
+            BeginInvoke(new Action(() =>
+            {
+                if (!_macroPlayer.IsPlaying) return;
+                string loopStr = _macroRepeatCombo?.SelectedItem?.ToString() == "Continuous"
+                    ? $"LOOP {loop}"
+                    : $"LOOP {loop}";
+                _statusLabel.Text = $"PLAYING · {loopStr} ({current}/{total})";
+                _statusLabel.ForeColor = Theme.AccentGreen;
+            }));
+        }
+        catch
+        {
+            // Form may be closing
+        }
+    }
+
+    private void OnMacroPlaybackFinished(bool completed, string? reason)
+    {
+        if (IsDisposed || Disposing) return;
+        try
+        {
+            BeginInvoke(new Action(() =>
+            {
+                UpdateMacroButtonLabels();
+                _macroRecButton.Enabled = true;
+
+                if (reason == "mouse moved")
+                {
+                    _statusLabel.Text = "PLAYBACK PAUSED (MOUSE MOVED)";
+                    _statusLabel.ForeColor = Theme.AccentOrange;
+                }
+                else if (completed)
+                {
+                    _statusLabel.Text = "PLAYBACK FINISHED";
+                    _statusLabel.ForeColor = Theme.AccentBlue;
+                }
+                else
+                {
+                    _statusLabel.Text = "PLAYBACK STOPPED";
+                    _statusLabel.ForeColor = Theme.TextMuted;
+                }
+            }));
+        }
+        catch
+        {
+            // Form may be closing
+        }
+    }
+
+    private void ClearMacro()
+    {
+        if (_macroPlayer.IsPlaying) StopMacroPlayback();
+        if (_inputRecorder.IsRecording) StopMacroRecording();
+        _currentMacro = new MacroSequence();
+        _lastLoadedMacroPath = null;
+        _macroFileLabel.Text = "No file loaded";
+        UpdateMacroInfo();
+        _statusLabel.Text = "MACRO CLEARED";
+        _statusLabel.ForeColor = Theme.TextMuted;
+    }
+
+    private void LoadMacroFromFile()
+    {
+        using var ofd = new OpenFileDialog
+        {
+            Filter = "Macro Files (*.macro.json;*.json)|*.macro.json;*.json|All Files (*.*)|*.*",
+            Title  = "Open Recorded Macro"
+        };
+        if (ofd.ShowDialog(this) == DialogResult.OK)
+        {
+            try
+            {
+                string json = File.ReadAllText(ofd.FileName);
+                var macro = JsonSerializer.Deserialize<MacroSequence>(json);
+                if (macro != null && macro.Actions.Count > 0)
+                {
+                    _currentMacro = macro;
+                    _lastLoadedMacroPath = ofd.FileName;
+                    _macroFileLabel.Text = Path.GetFileName(ofd.FileName);
+                    UpdateMacroInfo();
+                    _statusLabel.Text = $"LOADED {_currentMacro.Actions.Count} ACTIONS ({_currentMacro.TotalDurationMs / 1000.0:F1}S)";
+                    _statusLabel.ForeColor = Theme.AccentBlue;
+                }
+                else
+                {
+                    MessageBox.Show("The selected file contains no actions.", "Open Macro", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Could not load macro: {ex.Message}", "Load Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+    }
+
+    private void SaveMacroToFile()
+    {
+        if (_currentMacro.Actions.Count == 0)
+        {
+            MessageBox.Show("No actions recorded to save.", "Save Macro", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        using var sfd = new SaveFileDialog
+        {
+            Filter = "Macro Files (*.macro.json)|*.macro.json|JSON Files (*.json)|*.json",
+            Title  = "Save Recorded Macro",
+            FileName = $"{_currentMacro.Name.Replace(" ", "_").Replace(":", "-")}.macro.json"
+        };
+        if (sfd.ShowDialog(this) == DialogResult.OK)
+        {
+            try
+            {
+                string json = JsonSerializer.Serialize(_currentMacro, new JsonSerializerOptions { WriteIndented = true });
+                File.WriteAllText(sfd.FileName, json);
+                _lastLoadedMacroPath = sfd.FileName;
+                _macroFileLabel.Text = Path.GetFileName(sfd.FileName);
+                _statusLabel.Text = "MACRO SAVED";
+                _statusLabel.ForeColor = Theme.AccentBlue;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Could not save macro: {ex.Message}", "Save Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+    }
+
+    private void UpdateMacroButtonLabels()
+    {
+        string recHk  = _hotkeyRecCombo?.SelectedItem?.ToString()  ?? "F8";
+        string playHk = _hotkeyPlayCombo?.SelectedItem?.ToString() ?? "F9";
+        if (_macroRecButton != null && !_inputRecorder.IsRecording)
+        {
+            Theme.SetButtonActiveState(_macroRecButton, false, Theme.Danger, $"⏹  STOP ({recHk})", $"⏺  RECORD ({recHk})");
+        }
+        if (_macroPlayButton != null && !_macroPlayer.IsPlaying)
+        {
+            Theme.SetButtonActiveState(_macroPlayButton, false, Theme.AccentGreen, $"⏹  STOP ({playHk})", $"▶  PLAY ({playHk})");
+            _macroPlayButton.Enabled = _currentMacro != null && _currentMacro.Actions.Count > 0;
+        }
+    }
+
+    private void UpdateMacroInfo()
+    {
+        if (_currentMacro == null || _currentMacro.Actions.Count == 0)
+        {
+            _macroInfoLabel.Text      = "NO MACRO RECORDED YET";
+            _macroInfoLabel.ForeColor = Theme.TextMuted;
+            _macroPlayButton.Enabled  = false;
+            _macroSaveButton.Enabled  = false;
+            _macroClearButton.Enabled = false;
+        }
+        else
+        {
+            _macroInfoLabel.Text      = _currentMacro.Summary.ToUpperInvariant();
+            _macroInfoLabel.ForeColor = Theme.TextPrimary;
+            _macroPlayButton.Enabled  = !_macroPlayer.IsPlaying && !_inputRecorder.IsRecording;
+            _macroSaveButton.Enabled  = true;
+            _macroClearButton.Enabled = true;
+            UpdateMacroButtonLabels();
+        }
+    }
+
+    private static double ParseSpeedMultiplier(string? speed) => speed switch
+    {
+        "0.5x" => 0.5,
+        "1.0x" => 1.0,
+        "2.0x" => 2.0,
+        "5.0x" => 5.0,
+        "10.0x" => 10.0,
+        "Max"  => 50.0,
+        _      => 1.0
+    };
+
+    private static int ParseRepeatCount(string? repeat) => repeat switch
+    {
+        "1x"         => 1,
+        "2x"         => 2,
+        "3x"         => 3,
+        "5x"         => 5,
+        "10x"        => 10,
+        "Continuous" => 0,
+        _            => 1
+    };
 }
