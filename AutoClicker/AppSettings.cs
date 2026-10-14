@@ -46,4 +46,9 @@ public sealed class AppSettings
     public string HotkeyRecordKey { get; set; } = "F8";
     public string HotkeyPlayKey { get; set; } = "F9";
     public string? LastMacroPath { get; set; }
+
+    // Screen conditions (energy / health bars)
+    public System.Collections.Generic.List<ScreenCondition> ScreenConditions { get; set; } = new();
+    public int ScreenTolerance { get; set; } = 40;
+    public bool ScreenWaitUntilMet { get; set; } = true;
 }

@@ -143,6 +143,7 @@ public partial class MainForm : Form
         _inputRecorder.ActionRecorded += OnMacroActionRecorded;
         _macroPlayer.ProgressChanged += OnMacroPlaybackProgress;
         _macroPlayer.PlaybackFinished += OnMacroPlaybackFinished;
+        _macroPlayer.WaitingChanged += OnMacroWaitingChanged;
 
         LoadSettings();
 
@@ -568,7 +569,7 @@ public partial class MainForm : Form
             _trayIcon.ShowBalloonTip(1000, "AutoClicker Macro", $"Playback started. Press {playHk} or {stopHk} to stop.", ToolTipIcon.Info);
         }
 
-        _macroPlayer.Play(_currentMacro, speed, repeat, pauseOnMove);
+        _macroPlayer.Play(_currentMacro, speed, repeat, pauseOnMove, BuildScreenGate());
     }
 
     private void StopMacroPlayback(string? reason = null)

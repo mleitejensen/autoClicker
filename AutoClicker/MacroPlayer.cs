@@ -28,12 +28,14 @@ public sealed class MacroPlayer : IDisposable
 
     public event Action<int, int, int>? ProgressChanged;
     public event Action<bool, string?>? PlaybackFinished;
+    public event Action<string?>? WaitingChanged;
 
     public void Play(
         MacroSequence macro,
         double speedMultiplier = 1.0,
         int repeatCount = 1,
-        bool pauseOnMouseMove = true)
+        bool pauseOnMouseMove = true,
+        ScreenGate? gate = null)
     {
         if (macro == null || macro.Actions.Count == 0) return;
 
@@ -45,7 +47,7 @@ public sealed class MacroPlayer : IDisposable
             var token = _cts.Token;
             IsPlaying = true;
 
-            _playbackTask = Task.Run(() => PlaybackLoop(macro, speedMultiplier, repeatCount, pauseOnMouseMove, token), token);
+            _playbackTask = Task.Run(() => PlaybackLoop(macro, speedMultiplier, repeatCount, pauseOnMouseMove, gate, token), token);
         }
     }
 
@@ -88,6 +90,7 @@ public sealed class MacroPlayer : IDisposable
         double speedMultiplier,
         int repeatCount,
         bool pauseOnMouseMove,
+        ScreenGate? gate,
         CancellationToken token)
     {
         if (speedMultiplier <= 0.001) speedMultiplier = 1.0;
@@ -112,6 +115,11 @@ public sealed class MacroPlayer : IDisposable
             while (!token.IsCancellationRequested && (infinite || currentLoop < repeatCount))
             {
                 currentLoop++;
+
+                if (gate is { IsActive: true } && !PassGate(gate, token, out stopReason))
+                {
+                    return;
+                }
 
                 long loopStartTicks = Stopwatch.GetTimestamp();
                 long lastProgressTicks = 0;
@@ -262,6 +270,38 @@ public sealed class MacroPlayer : IDisposable
                 NativeMethods.SendKeyInput(action.ScanCode, upFlags, action.VkCode);
                 break;
         }
+    }
+
+    private bool PassGate(ScreenGate gate, CancellationToken token, out string? stopReason)
+    {
+        stopReason = null;
+        if (gate.Check(out var failing)) return true;
+
+        if (!gate.WaitUntilMet)
+        {
+            stopReason = $"{failing} condition not met";
+            return false;
+        }
+
+        try
+        {
+            while (!token.IsCancellationRequested)
+            {
+                WaitingChanged?.Invoke(failing);
+                Thread.Sleep(100);
+                if (gate.Check(out failing)) break;
+            }
+        }
+        finally
+        {
+            WaitingChanged?.Invoke(null);
+        }
+
+        // The user may have moved the mouse while waiting, which must not count as interference
+        if (NativeMethods.GetCursorPos(out var pt))
+            _lastEmittedPoint = new Point(pt.x, pt.y);
+
+        return !token.IsCancellationRequested;
     }
 
     private bool WaitUntilTicks(

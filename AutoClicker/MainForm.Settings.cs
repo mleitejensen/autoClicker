@@ -70,6 +70,7 @@ public partial class MainForm
 
             Select(_hotkeyRecCombo, s.HotkeyRecordKey);
             Select(_hotkeyPlayCombo, s.HotkeyPlayKey);
+            LoadScreenSettings(s);
 
             if (!string.IsNullOrEmpty(s.LastMacroPath) && File.Exists(s.LastMacroPath))
             {
@@ -145,6 +146,7 @@ public partial class MainForm
                 HotkeyPlayKey          = _hotkeyPlayCombo.SelectedItem?.ToString() ?? "F9",
                 LastMacroPath          = _lastLoadedMacroPath,
             };
+            SaveScreenSettings(s);
             Directory.CreateDirectory(Path.GetDirectoryName(SettingsPath)!);
             File.WriteAllText(SettingsPath, JsonSerializer.Serialize(s));
         }
