@@ -178,24 +178,26 @@ public partial class MainForm : Form
 
         var registered = new HashSet<Keys>();
 
-        if (KeyRegistry.HotkeyKeys.TryGetValue(startKeyName, out var startKey) && registered.Add(startKey))
+        void Reg(int id, string name)
         {
-            NativeMethods.RegisterHotKey(Handle, HOTKEY_START_ID, NativeMethods.MOD_NONE, (uint)startKey);
+            if (KeyRegistry.HotkeyKeys.TryGetValue(name, out var key) && registered.Add(key))
+                NativeMethods.RegisterHotKey(Handle, id, NativeMethods.MOD_NONE, (uint)key);
         }
 
-        if (KeyRegistry.HotkeyKeys.TryGetValue(stopKeyName, out var stopKey) && registered.Add(stopKey))
+        switch (_currentMode)
         {
-            NativeMethods.RegisterHotKey(Handle, HOTKEY_STOP_ID, NativeMethods.MOD_NONE, (uint)stopKey);
-        }
-
-        if (KeyRegistry.HotkeyKeys.TryGetValue(recKeyName, out var recKey) && registered.Add(recKey))
-        {
-            NativeMethods.RegisterHotKey(Handle, HOTKEY_REC_ID, NativeMethods.MOD_NONE, (uint)recKey);
-        }
-
-        if (KeyRegistry.HotkeyKeys.TryGetValue(playKeyName, out var playKey) && registered.Add(playKey))
-        {
-            NativeMethods.RegisterHotKey(Handle, HOTKEY_PLAY_ID, NativeMethods.MOD_NONE, (uint)playKey);
+            case AppMode.AutoClicker:
+                Reg(HOTKEY_START_ID, startKeyName);
+                Reg(HOTKEY_STOP_ID, stopKeyName);
+                break;
+            case AppMode.Macro:
+                Reg(HOTKEY_REC_ID, recKeyName);
+                Reg(HOTKEY_PLAY_ID, playKeyName);
+                break;
+            case AppMode.Routine:
+                Reg(HOTKEY_PLAY_ID, playKeyName);
+                Reg(HOTKEY_STOP_ID, stopKeyName);
+                break;
         }
     }
 
@@ -309,7 +311,7 @@ public partial class MainForm : Form
         _startButton.Enabled = true;
         _stopButton.Enabled  = false;
 
-        string summary = hadRun && _clickCount > 0 ? $" · {_clickCount} CLICKS" : string.Empty;
+        string summary = hadRun && _clickCount > 0 ? $" ï¿½ {_clickCount} CLICKS" : string.Empty;
         if (reason is not null)
         {
             _statusLabel.Text      = $"PAUSED ({reason.ToUpperInvariant()}){summary}";
@@ -328,13 +330,13 @@ public partial class MainForm : Form
         {
             case Phase.Countdown:
                 long remainingMs = _countdownEndTicks - Environment.TickCount64;
-                _statusLabel.Text      = $"STARTING IN {Math.Max(1, (remainingMs + 999) / 1000)}S…";
+                _statusLabel.Text      = $"STARTING IN {Math.Max(1, (remainingMs + 999) / 1000)}Sï¿½";
                 _statusLabel.ForeColor = Theme.AccentOrange;
                 break;
             case Phase.Running:
                 _statusLabel.Text = _releaseHeld is not null
                     ? "HOLDING"
-                    : $"RUNNING · {_clickCount} CLICKS";
+                    : $"RUNNING ï¿½ {_clickCount} CLICKS";
                 _statusLabel.ForeColor = Theme.AccentGreen;
                 break;
         }
@@ -346,7 +348,7 @@ public partial class MainForm : Form
         {
             long ms = _inputRecorder.CurrentDurationMs;
             int count = _inputRecorder.CurrentActionCount;
-            _statusLabel.Text = $"RECORDING · {count} ACTIONS ({ms / 1000.0:F1}S)";
+            _statusLabel.Text = $"RECORDING ï¿½ {count} ACTIONS ({ms / 1000.0:F1}S)";
             _statusLabel.ForeColor = Theme.Danger;
             _macroInfoLabel.Text = $"{count} ACTIONS RECORDED ({ms / 1000.0:F1}S)...";
             return;
@@ -597,7 +599,7 @@ public partial class MainForm : Form
                 string loopStr = _macroRepeatCombo?.SelectedItem?.ToString() == "Continuous"
                     ? $"LOOP {loop}"
                     : $"LOOP {loop}";
-                _statusLabel.Text = $"PLAYING · {loopStr} ({current}/{total})";
+                _statusLabel.Text = $"PLAYING ï¿½ {loopStr} ({current}/{total})";
                 _statusLabel.ForeColor = Theme.AccentGreen;
             }));
         }

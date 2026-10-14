@@ -27,8 +27,8 @@ A sleek, high-precision .NET 8 Windows Forms auto-clicker and input macro record
 - **Macro Persistence** – Save and load macros as readable, portable JSON files (`.macro.json`).
 
 ### 🛠 General & System Integration
-- **Configurable Global Hotkeys** – Dedicated hotkeys for Auto-Clicker Toggle (default **F6**), Stop All (default **F7**), Macro Record (default **F8**), and Macro Play (default **F9**), functional across all applications.
-- **Screen Bars** � On the Routine tab, mark an Energy and/or Health bar on screen (region + fill color) for routine steps to read.
+- **Configurable Global Hotkeys** – Dedicated hotkeys for Auto-Clicker Toggle (default **F6**), Stop All (default **F7**), Macro Record (default **F8**), and Macro Play (default **F9**), functional across all applications. Only the active tab's two hotkeys are registered: Clicker = Toggle/Stop, Macro = Record/Play, Routine = Play/Stop.
+- **Screen Bars** � On the Routine tab, mark an Energy and/or Health bar on screen (region + fill color) for routine steps to read.
 
 ### ? Routine (conditional flows)
 Chain steps that react to the on-screen bars: *Wait until a bar condition*, *Run a macro*, *Hold a key until a bar condition*, *Press a key*, *Click at a point*, *Wait a fixed time*, and *Go to step N if a bar condition*. Example: wait until Health = 50% (respawned) ? run move macro ? hold Shift until Energy = 80% ? press attack ? go to step 3 if Health = 10% ? click respawn. The routine then repeats. Routines (steps, repeat count, bar regions/colors, tolerance) can be saved and opened as `.routine.json` files. The Play hotkey starts/stops it and F7 stops everything.

@@ -568,6 +568,7 @@ public partial class MainForm
         try
         {
             _currentMode = mode;
+            if (IsHandleCreated) RegisterConfiguredHotkeys();
             bool isClicker = mode == AppMode.AutoClicker;
 
             _tabClickerRadio.Checked = isClicker;
