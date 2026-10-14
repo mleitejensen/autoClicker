@@ -35,17 +35,21 @@ public sealed class RoutineStep
     public int Milliseconds { get; set; } = 1000;     // Delay length
     public int TimeoutSeconds { get; set; }           // WaitUntil / HoldKeyUntil; 0 = no timeout
     public int JumpTo { get; set; } = 1;              // JumpIf, 1-based step number
+    public int BailPercent { get; set; }              // WaitUntil / HoldKeyUntil: leave early if Health is below this %; 0 = off
+    public int BailJumpTo { get; set; }               // 1-based step to go to on bail-out or timeout; 0 = none
 
     public static readonly string[] BarNames = { "Energy", "Health" };
 
     public string ConditionText() =>
         $"{BarNames[Math.Clamp(Bar, 0, BarNames.Length - 1)]} {(Below ? "<" : "≥")} {Percent}%";
 
+    private string BailText() => BailJumpTo > 0 ? $" (else go to step {BailJumpTo})" : "";
+
     public string Describe() => Type switch
     {
-        RoutineStepType.WaitUntil    => $"Wait until {ConditionText()}",
+        RoutineStepType.WaitUntil    => $"Wait until {ConditionText()}{BailText()}",
         RoutineStepType.RunMacro     => $"Run macro: {(string.IsNullOrWhiteSpace(MacroPath) ? "(current macro)" : System.IO.Path.GetFileNameWithoutExtension(MacroPath))}",
-        RoutineStepType.HoldKeyUntil => $"Hold {Key} until {ConditionText()}",
+        RoutineStepType.HoldKeyUntil => $"Hold {Key} until {ConditionText()}{BailText()}",
         RoutineStepType.PressKey     => $"Press {Key}",
         RoutineStepType.ClickAt      => $"{Button} click at {X}, {Y}",
         RoutineStepType.Delay        => $"Wait {Milliseconds / 1000.0:0.##}s",
@@ -121,11 +125,19 @@ public sealed class RoutineRunner : IDisposable
                     switch (step.Type)
                     {
                         case RoutineStepType.WaitUntil:
-                            if (!WaitFor(step, bars, tolerance, token, out error)) return;
+                            {
+                                var r = WaitFor(step, bars, tolerance, token, out error);
+                                if (r == Outcome.Failed) return;
+                                if (r == Outcome.Bail) next = Math.Clamp(step.BailJumpTo, 1, steps.Count) - 1;
+                            }
                             break;
 
                         case RoutineStepType.HoldKeyUntil:
-                            if (!HoldUntil(step, bars, tolerance, token, out error)) return;
+                            {
+                                var r = HoldUntil(step, bars, tolerance, token, out error);
+                                if (r == Outcome.Failed) return;
+                                if (r == Outcome.Bail) next = Math.Clamp(step.BailJumpTo, 1, steps.Count) - 1;
+                            }
                             break;
 
                         case RoutineStepType.RunMacro:
@@ -181,8 +193,24 @@ public sealed class RoutineRunner : IDisposable
         }
     }
 
-    /// <summary>Evaluates a step's condition. Sets <paramref name="error"/> when the bar isn't configured.</summary>
+    private enum Outcome { Met, Bail, Failed }
+
+    /// <summary>
+    /// Evaluates a step's condition. A "true" result must be confirmed by further reads so a
+    /// single flickering frame can't trigger it. Sets <paramref name="error"/> when the bar isn't configured.
+    /// </summary>
     private static bool Check(RoutineStep step, IReadOnlyList<ScreenCondition> bars, int tolerance, out string? error)
+    {
+        if (!CheckOnce(step, bars, tolerance, out error)) return false;
+        for (int n = 0; n < 2; n++)
+        {
+            Thread.Sleep(60);
+            if (!CheckOnce(step, bars, tolerance, out error)) return false;
+        }
+        return true;
+    }
+
+    private static bool CheckOnce(RoutineStep step, IReadOnlyList<ScreenCondition> bars, int tolerance, out string? error)
     {
         error = null;
         var bar = step.Bar >= 0 && step.Bar < bars.Count ? bars[step.Bar] : null;
@@ -201,29 +229,39 @@ public sealed class RoutineRunner : IDisposable
         return step.Below ? level < step.Percent : level >= step.Percent;
     }
 
-    private static bool WaitFor(RoutineStep step, IReadOnlyList<ScreenCondition> bars, int tolerance, CancellationToken token, out string? error)
+    /// <summary>True when the step's optional "Health is low" escape has triggered.</summary>
+    private static bool ShouldBail(RoutineStep step, IReadOnlyList<ScreenCondition> bars, int tolerance)
+    {
+        if (step.BailPercent <= 0 || step.BailJumpTo <= 0) return false;
+        var probe = new RoutineStep { Bar = 1, Below = true, Percent = step.BailPercent };
+        return Check(probe, bars, tolerance, out _);
+    }
+
+    private static Outcome WaitFor(RoutineStep step, IReadOnlyList<ScreenCondition> bars, int tolerance, CancellationToken token, out string? error)
     {
         error = null;
         long deadline = step.TimeoutSeconds > 0 ? Environment.TickCount64 + step.TimeoutSeconds * 1000L : long.MaxValue;
         while (!token.IsCancellationRequested)
         {
-            if (Check(step, bars, tolerance, out error)) return true;
-            if (error != null) return false;
+            if (Check(step, bars, tolerance, out error)) return Outcome.Met;
+            if (error != null) return Outcome.Failed;
+            if (ShouldBail(step, bars, tolerance)) return Outcome.Bail;
             if (Environment.TickCount64 >= deadline)
             {
+                if (step.BailJumpTo > 0) return Outcome.Bail;
                 error = $"Timed out waiting for {step.ConditionText()}";
-                return false;
+                return Outcome.Failed;
             }
             Sleep(100, token);
         }
-        return false;
+        return Outcome.Failed;
     }
 
-    private static bool HoldUntil(RoutineStep step, IReadOnlyList<ScreenCondition> bars, int tolerance, CancellationToken token, out string? error)
+    private static Outcome HoldUntil(RoutineStep step, IReadOnlyList<ScreenCondition> bars, int tolerance, CancellationToken token, out string? error)
     {
         error = null;
-        if (Check(step, bars, tolerance, out error)) return true;
-        if (error != null) return false;
+        if (Check(step, bars, tolerance, out error)) return Outcome.Met;
+        if (error != null) return Outcome.Failed;
 
         var release = InputSimulator.HoldKey(step.Key, false, false, false);
         try
@@ -232,22 +270,22 @@ public sealed class RoutineRunner : IDisposable
             while (!token.IsCancellationRequested)
             {
                 Sleep(50, token);
-                if (Check(step, bars, tolerance, out error)) return true;
-                if (error != null) return false;
+                if (Check(step, bars, tolerance, out error)) return Outcome.Met;
+                if (error != null) return Outcome.Failed;
+                if (ShouldBail(step, bars, tolerance)) return Outcome.Bail;
                 if (Environment.TickCount64 >= deadline)
                 {
-                    error = $"Timed out holding {step.Key} for {step.ConditionText()}";
-                    return false;
+                    // Running out of time isn't fatal: bail out if configured, otherwise carry on.
+                    return step.BailJumpTo > 0 ? Outcome.Bail : Outcome.Met;
                 }
             }
-            return false;
+            return Outcome.Failed;
         }
         finally
         {
             release();
         }
     }
-
     private bool RunMacro(RoutineStep step, Func<string, MacroSequence?> loader, CancellationToken token, out string? error)
     {
         error = null;

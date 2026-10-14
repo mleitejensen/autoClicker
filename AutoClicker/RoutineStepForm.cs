@@ -21,11 +21,11 @@ public sealed class RoutineStepForm : Form
 
     private readonly ComboBox _typeCombo;
     private readonly ComboBox _barCombo, _opCombo, _keyCombo, _buttonCombo;
-    private readonly NumericUpDown _percent, _timeout, _seconds, _x, _y, _jump;
+    private readonly NumericUpDown _percent, _timeout, _seconds, _x, _y, _jump, _bailPct, _bailJump;
     private readonly TextBox _macroPath;
     private readonly Button _browse, _pick;
     private readonly Label _timeoutHint;
-    private readonly Control[] _barControls, _keyControls, _macroControls, _clickControls, _delayControls, _timeoutControls, _jumpControls;
+    private readonly Control[] _barControls, _keyControls, _macroControls, _clickControls, _delayControls, _timeoutControls, _jumpControls, _bailControls;
     private readonly int _stepCount;
 
     public RoutineStep Result { get; private set; }
@@ -116,7 +116,16 @@ public sealed class RoutineStepForm : Form
         _jump = Theme.CreateNumeric(80, 148, 56, 1, 1, _stepCount + 1, 1);
         _jumpControls = new Control[] { jumpCap, _jump };
 
+        // Bail-out row (wait / hold): leave early when Health drops, so a death can't leave the routine stuck
+        var bailCap = Caption("Or if Health <", 14, 192);
+        _bailPct = Theme.CreateNumeric(92, 188, 56, 0, 0, 100, 1);
+        var bailMid = Caption("% go to step", 152, 192);
+        _bailJump = Theme.CreateNumeric(226, 188, 56, 0, 0, _stepCount + 1, 1);
+        var bailHint = Caption("0 = off", 288, 192);
+        _bailControls = new Control[] { bailCap, _bailPct, bailMid, _bailJump, bailHint };
+
         foreach (var c in _barControls) Controls.Add(c);
+        foreach (var c in _bailControls) Controls.Add(c);
         foreach (var c in _keyControls) Controls.Add(c);
         foreach (var c in _macroControls) Controls.Add(c);
         foreach (var c in _clickControls) Controls.Add(c);
@@ -160,6 +169,8 @@ public sealed class RoutineStepForm : Form
         _seconds.Value = Math.Clamp(s.Milliseconds / 1000m, 0.05m, 3600m);
         _timeout.Value = Math.Clamp(s.TimeoutSeconds, 0, 86400);
         _jump.Value = Math.Clamp(s.JumpTo, 1, _stepCount + 1);
+        _bailPct.Value = Math.Clamp(s.BailPercent, 0, 100);
+        _bailJump.Value = Math.Clamp(s.BailJumpTo, 0, _stepCount + 1);
     }
 
     private void Commit()
@@ -177,6 +188,8 @@ public sealed class RoutineStepForm : Form
         s.Milliseconds = (int)(_seconds.Value * 1000);
         s.TimeoutSeconds = (int)_timeout.Value;
         s.JumpTo = (int)_jump.Value;
+        s.BailPercent = (int)_bailPct.Value;
+        s.BailJumpTo = (int)_bailJump.Value;
     }
 
     private void UpdateVisibility()
@@ -191,6 +204,7 @@ public sealed class RoutineStepForm : Form
         Show(_delayControls, type == RoutineStepType.Delay);
         Show(_timeoutControls, type is RoutineStepType.WaitUntil or RoutineStepType.HoldKeyUntil);
         Show(_jumpControls, type == RoutineStepType.JumpIf);
+        Show(_bailControls, type is RoutineStepType.WaitUntil or RoutineStepType.HoldKeyUntil);
 
         // The key row sits below the condition row only when both are shown
         int keyY = cond ? 112 : 74;
