@@ -71,7 +71,7 @@ public partial class MainForm
         AddScreenConditionsCard(_routineContainerPanel, pad, innerPad, cardWidth, ref ry);
 
         // --- Run card ---
-        var runCard = Theme.CreateCard(pad, ry, cardWidth, 150, Theme.AccentGreen);
+        var runCard = Theme.CreateCard(pad, ry, cardWidth, 188, Theme.AccentGreen);
         runCard.Controls.Add(Theme.CreateTagLabel("RUN", innerPad, 10, Theme.AccentGreen));
 
         runCard.Controls.Add(new Label
@@ -95,10 +95,19 @@ public partial class MainForm
         runCard.Controls.Add(_routineStartButton);
         runCard.Controls.Add(_routineStopButton);
 
+        var openBtn = Theme.CreateButton("📂  OPEN ROUTINE...", innerPad, 106, 148, Theme.BgCard, height: 30, isOutline: true);
+        var saveBtn = Theme.CreateButton("💾  SAVE ROUTINE...", innerPad + 156, 106, 148, Theme.BgCard, height: 30, isOutline: true);
+        openBtn.Font = new Font("Segoe UI Semibold", 8.25f);
+        saveBtn.Font = new Font("Segoe UI Semibold", 8.25f);
+        openBtn.Click += (_, _) => LoadRoutineFromFile();
+        saveBtn.Click += (_, _) => SaveRoutineToFile();
+        runCard.Controls.Add(openBtn);
+        runCard.Controls.Add(saveBtn);
+
         runCard.Controls.Add(new Label
         {
             Text = "Set each bar's region and color above, then use them in steps.\nThe Play hotkey starts / stops the routine.",
-            Location = new Point(innerPad, 106), Size = new Size(cardWidth - innerPad * 2, 34),
+            Location = new Point(innerPad, 144), Size = new Size(cardWidth - innerPad * 2, 34),
             ForeColor = Theme.TextMuted, Font = new Font("Segoe UI", 7.75f), UseMnemonic = false,
         });
         _routineContainerPanel.Controls.Add(runCard);
@@ -287,6 +296,88 @@ public partial class MainForm
         catch
         {
             // Form may be closing
+        }
+    }
+
+    private sealed class RoutineFile
+    {
+        public List<RoutineStep> Steps { get; set; } = new();
+        public int Repeat { get; set; }
+        public int Tolerance { get; set; } = 40;
+        public List<ScreenCondition> Bars { get; set; } = new();
+    }
+
+    private void SaveRoutineToFile()
+    {
+        if (_routineSteps.Count == 0)
+        {
+            MessageBox.Show(this, "Add at least one step before saving.", "Save Routine", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        using var sfd = new SaveFileDialog
+        {
+            Filter = "Routine Files (*.routine.json)|*.routine.json|JSON Files (*.json)|*.json",
+            Title = "Save Routine",
+            FileName = "routine.routine.json",
+        };
+        if (sfd.ShowDialog(this) != DialogResult.OK) return;
+
+        try
+        {
+            var data = new RoutineFile
+            {
+                Steps = _routineSteps.Select(x => x.Clone()).ToList(),
+                Repeat = (int)_routineRepeatNumeric.Value,
+                Tolerance = (int)_screenToleranceNumeric.Value,
+                Bars = _conditionRows.Select(r => r.Condition.Clone()).ToList(),
+            };
+            File.WriteAllText(sfd.FileName, JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true }));
+            _statusLabel.Text = "ROUTINE SAVED";
+            _statusLabel.ForeColor = Theme.AccentBlue;
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, $"Could not save routine: {ex.Message}", "Save Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private void LoadRoutineFromFile()
+    {
+        if (_routineRunner.IsRunning) return;
+
+        using var ofd = new OpenFileDialog
+        {
+            Filter = "Routine Files (*.routine.json)|*.routine.json|JSON Files (*.json)|*.json|All Files (*.*)|*.*",
+            Title = "Open Routine",
+        };
+        if (ofd.ShowDialog(this) != DialogResult.OK) return;
+
+        try
+        {
+            var data = JsonSerializer.Deserialize<RoutineFile>(File.ReadAllText(ofd.FileName));
+            if (data == null) throw new InvalidDataException("Empty routine file");
+
+            _routineSteps.Clear();
+            _routineSteps.AddRange(data.Steps);
+            SetClamped(_routineRepeatNumeric, data.Repeat);
+            SetClamped(_screenToleranceNumeric, data.Tolerance);
+
+            for (int i = 0; i < _conditionRows.Count && i < data.Bars.Count; i++)
+            {
+                var row = _conditionRows[i];
+                row.Condition = data.Bars[i];
+                row.Enabled.Checked = data.Bars[i].Enabled;
+                SetClamped(row.MinPercent, data.Bars[i].MinPercent);
+            }
+
+            RefreshRoutineList(0);
+            _statusLabel.Text = $"LOADED ROUTINE ({_routineSteps.Count} STEPS)";
+            _statusLabel.ForeColor = Theme.AccentBlue;
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, $"Could not load routine: {ex.Message}", "Load Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 
