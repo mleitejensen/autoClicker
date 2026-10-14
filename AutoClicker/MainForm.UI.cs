@@ -22,51 +22,38 @@ public partial class MainForm
         var wordmarkPanel = new FlowLayoutPanel
         {
             Location     = new Point(pad, y),
-            Size         = new Size(190, 24),
+            Size         = new Size(190, 28),
             BackColor    = Color.Transparent,
             WrapContents = false,
             Margin       = Padding.Empty,
             Padding      = Padding.Empty,
         };
 
-        var wordAuto = new Label
+        var logoBox = new PictureBox
         {
-            Text        = "AUTO",
+            Size     = new Size(26, 26),
+            SizeMode = PictureBoxSizeMode.StretchImage,
+            Margin   = new Padding(0, 0, 8, 0),
+            Image    = new Icon(Icon, 32, 32).ToBitmap(),
+        };
+        var wordName = new Label
+        {
+            Text        = "REFLEX",
             AutoSize    = true,
             ForeColor   = Theme.TextPrimary,
-            Font        = new Font("Segoe UI", 12f, FontStyle.Bold),
-            Margin      = new Padding(0, 0, 4, 0),
-            UseMnemonic = false,
-        };
-        var dividerLabel = new Label
-        {
-            Text        = "│",
-            AutoSize    = true,
-            ForeColor   = Theme.BorderHover,
-            Font        = new Font("Segoe UI", 10.5f),
-            Margin      = new Padding(0, 2, 4, 0),
-            UseMnemonic = false,
-        };
-        var wordClicker = new Label
-        {
-            Text        = "CLICKER",
-            AutoSize    = true,
-            ForeColor   = Theme.TextPrimary,
-            Font        = new Font("Segoe UI", 12f, FontStyle.Regular),
+            Font        = new Font("Segoe UI", 13f, FontStyle.Bold),
             Margin      = new Padding(0, 0, 0, 0),
             UseMnemonic = false,
         };
 
-        wordmarkPanel.Controls.Add(wordAuto);
-        wordmarkPanel.Controls.Add(dividerLabel);
-        wordmarkPanel.Controls.Add(wordClicker);
+        wordmarkPanel.Controls.Add(logoBox);
+        wordmarkPanel.Controls.Add(wordName);
         Controls.Add(wordmarkPanel);
-
         var subtitleLabel = new Label
         {
-            Text        = "AUTOMATION SUITE",
-            Location    = new Point(pad + cardWidth - 130, y + 6),
-            Size        = new Size(130, 16),
+            Text        = "CLICK · RECORD · REACT",
+            Location    = new Point(pad + cardWidth - 160, y + 8),
+            Size        = new Size(160, 16),
             TextAlign   = ContentAlignment.MiddleRight,
             AutoSize    = false,
             ForeColor   = Theme.TextMuted,

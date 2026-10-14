@@ -6,7 +6,10 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
-    <AssemblyName>AutoClicker</AssemblyName>
+    <AssemblyName>Reflex</AssemblyName>
+    <Product>Reflex</Product>
+    <AssemblyTitle>Reflex</AssemblyTitle>
+    <Description>Screen-aware auto clicker, macro recorder and routine runner</Description>
     <RootNamespace>AutoClicker</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>app.ico</ApplicationIcon>

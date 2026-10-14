@@ -1,4 +1,6 @@
-# AutoClicker & TinyTask Macro Recorder
+# Reflex
+
+> Screen-aware auto clicker, TinyTask-style macro recorder and conditional routine runner.
 
 A sleek, high-precision .NET 8 Windows Forms auto-clicker and input macro recorder designed with a modern dark theme and sub-millisecond timing accuracy.
 
@@ -49,7 +51,7 @@ Chain steps that react to the on-screen bars: *Wait until a bar condition*, *Run
 dotnet build AutoClicker/AutoClicker.csproj -c Release
 ```
 
-The compiled standalone executable is output to `AutoClicker/bin/Release/net8.0-windows/AutoClicker.exe`.
+The compiled standalone executable is output to `AutoClicker/bin/Release/net8.0-windows/Reflex.exe`.
 
 ## Usage
 

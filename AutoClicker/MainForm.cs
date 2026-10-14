@@ -127,7 +127,7 @@ public partial class MainForm : Form
 
     public MainForm()
     {
-        Text            = "AutoClicker";
+        Text            = "Reflex";
         FormBorderStyle = FormBorderStyle.FixedSingle;
         MaximizeBox     = false;
         StartPosition   = FormStartPosition.CenterScreen;
@@ -508,7 +508,7 @@ public partial class MainForm : Form
 
         if (WindowState == FormWindowState.Minimized || !Visible)
         {
-            _trayIcon.ShowBalloonTip(1000, "AutoClicker Macro", $"Recording started. Press {recHk} or {stopHk} to stop.", ToolTipIcon.Info);
+            _trayIcon.ShowBalloonTip(1000, "Reflex", $"Recording started. Press {recHk} or {stopHk} to stop.", ToolTipIcon.Info);
         }
     }
 
@@ -529,7 +529,7 @@ public partial class MainForm : Form
         string recHk = _hotkeyRecCombo?.SelectedItem?.ToString() ?? "F8";
         if (WindowState == FormWindowState.Minimized || !Visible)
         {
-            _trayIcon.ShowBalloonTip(1000, "AutoClicker Macro", $"Recording finished: {_currentMacro.Actions.Count} actions.", ToolTipIcon.Info);
+            _trayIcon.ShowBalloonTip(1000, "Reflex", $"Recording finished: {_currentMacro.Actions.Count} actions.", ToolTipIcon.Info);
         }
     }
 
@@ -571,7 +571,7 @@ public partial class MainForm : Form
         string stopHk = _hotkeyStopCombo?.SelectedItem?.ToString() ?? "F7";
         if (WindowState == FormWindowState.Minimized || !Visible)
         {
-            _trayIcon.ShowBalloonTip(1000, "AutoClicker Macro", $"Playback started. Press {playHk} or {stopHk} to stop.", ToolTipIcon.Info);
+            _trayIcon.ShowBalloonTip(1000, "Reflex", $"Playback started. Press {playHk} or {stopHk} to stop.", ToolTipIcon.Info);
         }
 
         _macroPlayer.Play(_currentMacro, speed, repeat, pauseOnMove);

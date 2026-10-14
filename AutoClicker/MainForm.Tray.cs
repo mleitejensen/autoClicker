@@ -14,7 +14,7 @@ public partial class MainForm
             BackColor       = Theme.BgPanel,
             ShowImageMargin = false,
         };
-        var itemShow       = new ToolStripMenuItem("Open AutoClicker", null, (_, _) => RestoreFromTray());
+        var itemShow       = new ToolStripMenuItem("Open Reflex", null, (_, _) => RestoreFromTray());
         var itemStartClick = new ToolStripMenuItem("Start Clicker", null, (_, _) => StartClicking());
         var itemStopClick  = new ToolStripMenuItem("Stop Clicker", null, (_, _) => StopClicking());
         var itemRecMacro   = new ToolStripMenuItem("Record Macro", null, (_, _) => ToggleMacroRecording());
@@ -37,7 +37,7 @@ public partial class MainForm
         _trayIcon = new NotifyIcon
         {
             Icon             = appIcon ?? SystemIcons.Application,
-            Text             = "AutoClicker",
+            Text             = "Reflex",
             Visible          = true,
             ContextMenuStrip = contextMenu,
         };
@@ -64,7 +64,7 @@ public partial class MainForm
         {
             e.Cancel = true;
             Hide();
-            _trayIcon.ShowBalloonTip(1200, "AutoClicker", "Minimized to system tray. Double-click to restore, or use your hotkeys.", ToolTipIcon.Info);
+            _trayIcon.ShowBalloonTip(1200, "Reflex", "Minimized to system tray. Double-click to restore, or use your hotkeys.", ToolTipIcon.Info);
             return;
         }
 
