@@ -145,13 +145,19 @@ public sealed class RoutineRunner : IDisposable
                             break;
 
                         case RoutineStepType.PressKey:
-                            InputSimulator.PressKey(step.Key, false, false, false);
-                            Sleep(60, token);
+                            {
+                                // Roblox samples input once per frame, so a very short tap can be missed
+                                var release = InputSimulator.HoldKey(step.Key, false, false, false);
+                                try { Sleep(120, token); } finally { release(); }
+                                Sleep(60, token);
+                            }
                             break;
 
                         case RoutineStepType.ClickAt:
+                            NativeMethods.SetCursorPos(step.X, step.Y);
+                            Sleep(80, token);
                             InputSimulator.ClickMouse(step.Button, "Single", "Fixed", step.X, step.Y, false, 0);
-                            Sleep(60, token);
+                            Sleep(100, token);
                             break;
 
                         case RoutineStepType.Delay:
