@@ -51,4 +51,8 @@ public sealed class AppSettings
     public System.Collections.Generic.List<ScreenCondition> ScreenConditions { get; set; } = new();
     public int ScreenTolerance { get; set; } = 40;
     public bool ScreenWaitUntilMet { get; set; } = true;
+
+    // Routine (multi-step flow)
+    public System.Collections.Generic.List<RoutineStep> RoutineSteps { get; set; } = new();
+    public int RoutineRepeat { get; set; }
 }

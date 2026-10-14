@@ -19,6 +19,10 @@ public static class KeyRegistry
         ["Escape"]    = Keys.Escape,
         ["Backspace"] = Keys.Back,
         ["Delete"]    = Keys.Delete,
+        // Modifiers (useful for hold-to-charge actions)
+        ["Shift"]     = Keys.ShiftKey,
+        ["Ctrl"]      = Keys.ControlKey,
+        ["Alt"]       = Keys.Menu,
         // Arrows
         ["Left"]      = Keys.Left,
         ["Right"]     = Keys.Right,

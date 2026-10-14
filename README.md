@@ -28,6 +28,10 @@ A sleek, high-precision .NET 8 Windows Forms auto-clicker and input macro record
 
 ### 🛠 General & System Integration
 - **Configurable Global Hotkeys** – Dedicated hotkeys for Auto-Clicker Toggle (default **F6**), Stop All (default **F7**), Macro Record (default **F8**), and Macro Play (default **F9**), functional across all applications.
+- **Screen Conditions** � Mark an Energy and/or Health bar on screen (region + fill color) and gate macro playback on its level.
+
+### ? Routine (conditional flows)
+Chain steps that react to the on-screen bars: *Wait until a bar condition*, *Run a macro*, *Hold a key until a bar condition*, *Press a key*, *Click at a point*, *Wait a fixed time*, and *Go to step N if a bar condition*. Example: wait until Health = 50% (respawned) ? run move macro ? hold Shift until Energy = 80% ? press attack ? go to step 3 if Health = 10% ? click respawn. The routine then repeats. The Play hotkey starts/stops it and F7 stops everything.
 - **Universal Panic Key (F7)** – Instantly stops active auto-clicking, macro recording, or playback globally.
 - **Always on Top** – Pin the window above other apps for easy access while gaming or working.
 - **System Tray Integration** – Minimize or close to the system tray with a context menu to Start, Stop, Record, Play, Restore, or Exit.

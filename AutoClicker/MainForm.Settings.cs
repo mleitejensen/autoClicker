@@ -61,6 +61,7 @@ public partial class MainForm
 
             // Macro / TinyTask settings
             if (s.ActiveTab == "Macro") _tabMacroRadio.Checked = true;
+            else if (s.ActiveTab == "Routine") _tabRoutineRadio.Checked = true;
             else _tabClickerRadio.Checked = true;
 
             Select(_macroSpeedCombo, s.MacroSpeed);
@@ -71,6 +72,7 @@ public partial class MainForm
             Select(_hotkeyRecCombo, s.HotkeyRecordKey);
             Select(_hotkeyPlayCombo, s.HotkeyPlayKey);
             LoadScreenSettings(s);
+            LoadRoutineSettings(s);
 
             if (!string.IsNullOrEmpty(s.LastMacroPath) && File.Exists(s.LastMacroPath))
             {
@@ -137,7 +139,7 @@ public partial class MainForm
                 CloseToTray       = _closeToTrayCheck.Checked,
 
                 // Macro / TinyTask settings
-                ActiveTab              = _tabMacroRadio.Checked ? "Macro" : "AutoClicker",
+                ActiveTab              = _tabRoutineRadio.Checked ? "Routine" : _tabMacroRadio.Checked ? "Macro" : "AutoClicker",
                 MacroSpeed             = _macroSpeedCombo.SelectedItem?.ToString() ?? "1.0x",
                 MacroRepeat            = _macroRepeatCombo.SelectedItem?.ToString() ?? "1x",
                 MacroRecordMouseMove   = _macroMouseMoveCheck.Checked,
@@ -147,6 +149,7 @@ public partial class MainForm
                 LastMacroPath          = _lastLoadedMacroPath,
             };
             SaveScreenSettings(s);
+            SaveRoutineSettings(s);
             Directory.CreateDirectory(Path.GetDirectoryName(SettingsPath)!);
             File.WriteAllText(SettingsPath, JsonSerializer.Serialize(s));
         }

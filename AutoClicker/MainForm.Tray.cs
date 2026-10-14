@@ -74,6 +74,7 @@ public partial class MainForm
         _highResTimer.Dispose();
         _inputRecorder.Dispose();
         _macroPlayer.Dispose();
+        _routineRunner.Dispose();
         _trayIcon.Visible = false;
         _trayIcon.Dispose();
     }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -24,7 +24,7 @@ public partial class MainForm : Form
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "AutoClicker", "settings.json");
 
-    public enum AppMode { AutoClicker, Macro }
+    public enum AppMode { AutoClicker, Macro, Routine }
     private AppMode _currentMode = AppMode.AutoClicker;
 
     #region UI Controls
@@ -226,7 +226,7 @@ public partial class MainForm : Form
                     ToggleMacroRecording();
                     break;
                 case HOTKEY_PLAY_ID:
-                    ToggleMacroPlayback();
+                    if (_currentMode == AppMode.Routine) ToggleRoutine(); else ToggleMacroPlayback();
                     break;
             }
         }
@@ -243,6 +243,9 @@ public partial class MainForm : Form
 
         if (_macroPlayer.IsPlaying)
             StopMacroPlayback();
+
+        if (_routineRunner.IsRunning)
+            StopRoutine();
     }
 
     // -------------------------------------------------------------------------
@@ -306,7 +309,7 @@ public partial class MainForm : Form
         _startButton.Enabled = true;
         _stopButton.Enabled  = false;
 
-        string summary = hadRun && _clickCount > 0 ? $" · {_clickCount} CLICKS" : string.Empty;
+        string summary = hadRun && _clickCount > 0 ? $" � {_clickCount} CLICKS" : string.Empty;
         if (reason is not null)
         {
             _statusLabel.Text      = $"PAUSED ({reason.ToUpperInvariant()}){summary}";
@@ -325,13 +328,13 @@ public partial class MainForm : Form
         {
             case Phase.Countdown:
                 long remainingMs = _countdownEndTicks - Environment.TickCount64;
-                _statusLabel.Text      = $"STARTING IN {Math.Max(1, (remainingMs + 999) / 1000)}S…";
+                _statusLabel.Text      = $"STARTING IN {Math.Max(1, (remainingMs + 999) / 1000)}S�";
                 _statusLabel.ForeColor = Theme.AccentOrange;
                 break;
             case Phase.Running:
                 _statusLabel.Text = _releaseHeld is not null
                     ? "HOLDING"
-                    : $"RUNNING · {_clickCount} CLICKS";
+                    : $"RUNNING � {_clickCount} CLICKS";
                 _statusLabel.ForeColor = Theme.AccentGreen;
                 break;
         }
@@ -343,7 +346,7 @@ public partial class MainForm : Form
         {
             long ms = _inputRecorder.CurrentDurationMs;
             int count = _inputRecorder.CurrentActionCount;
-            _statusLabel.Text = $"RECORDING · {count} ACTIONS ({ms / 1000.0:F1}S)";
+            _statusLabel.Text = $"RECORDING � {count} ACTIONS ({ms / 1000.0:F1}S)";
             _statusLabel.ForeColor = Theme.Danger;
             _macroInfoLabel.Text = $"{count} ACTIONS RECORDED ({ms / 1000.0:F1}S)...";
             return;
@@ -493,7 +496,7 @@ public partial class MainForm : Form
         bool recMouseMove = _macroMouseMoveCheck?.Checked ?? true;
         _inputRecorder.Start(recMouseMove, excluded);
 
-        Theme.SetButtonActiveState(_macroRecButton, true, Theme.Danger, $"⏹  STOP REC ({recHk})", $"⏺  RECORD ({recHk})");
+        Theme.SetButtonActiveState(_macroRecButton, true, Theme.Danger, $"?  STOP REC ({recHk})", $"?  RECORD ({recHk})");
         _macroPlayButton.Enabled = false;
 
         _statusLabel.Text = "RECORDING MACRO...";
@@ -557,7 +560,7 @@ public partial class MainForm : Form
         bool pauseOnMove = _macroPauseOnMoveCheck?.Checked ?? true;
 
         string playHk = _hotkeyPlayCombo?.SelectedItem?.ToString() ?? "F9";
-        Theme.SetButtonActiveState(_macroPlayButton, true, Theme.AccentGreen, $"⏹  STOP PLAY ({playHk})", $"▶  PLAY ({playHk})");
+        Theme.SetButtonActiveState(_macroPlayButton, true, Theme.AccentGreen, $"?  STOP PLAY ({playHk})", $"?  PLAY ({playHk})");
         _macroRecButton.Enabled = false;
 
         _statusLabel.Text = "PLAYING MACRO...";
@@ -594,7 +597,7 @@ public partial class MainForm : Form
                 string loopStr = _macroRepeatCombo?.SelectedItem?.ToString() == "Continuous"
                     ? $"LOOP {loop}"
                     : $"LOOP {loop}";
-                _statusLabel.Text = $"PLAYING · {loopStr} ({current}/{total})";
+                _statusLabel.Text = $"PLAYING � {loopStr} ({current}/{total})";
                 _statusLabel.ForeColor = Theme.AccentGreen;
             }));
         }
@@ -721,11 +724,11 @@ public partial class MainForm : Form
         string playHk = _hotkeyPlayCombo?.SelectedItem?.ToString() ?? "F9";
         if (_macroRecButton != null && !_inputRecorder.IsRecording)
         {
-            Theme.SetButtonActiveState(_macroRecButton, false, Theme.Danger, $"⏹  STOP ({recHk})", $"⏺  RECORD ({recHk})");
+            Theme.SetButtonActiveState(_macroRecButton, false, Theme.Danger, $"?  STOP ({recHk})", $"?  RECORD ({recHk})");
         }
         if (_macroPlayButton != null && !_macroPlayer.IsPlaying)
         {
-            Theme.SetButtonActiveState(_macroPlayButton, false, Theme.AccentGreen, $"⏹  STOP ({playHk})", $"▶  PLAY ({playHk})");
+            Theme.SetButtonActiveState(_macroPlayButton, false, Theme.AccentGreen, $"?  STOP ({playHk})", $"?  PLAY ({playHk})");
             _macroPlayButton.Enabled = _currentMacro != null && _currentMacro.Actions.Count > 0;
         }
     }

@@ -76,9 +76,14 @@ public partial class MainForm
         y += 22;
 
         // --- Mode Selector (Tabs) ---
-        const int tabWidth = (cardWidth - 8) / 2;
-        _tabClickerRadio = Theme.CreateSegment("⚡ AUTO CLICKER", pad, y, tabWidth, true, Theme.AccentBlue);
-        _tabMacroRadio   = Theme.CreateSegment("⏺ MACRO (TINYTASK)", pad + tabWidth + 8, y, tabWidth, false, Theme.AccentOrange);
+        const int tabWidth = (cardWidth - 16) / 3;
+        _tabClickerRadio = Theme.CreateSegment("⚡ CLICKER", pad, y, tabWidth, true, Theme.AccentBlue);
+        _tabMacroRadio   = Theme.CreateSegment("⏺ MACRO", pad + tabWidth + 8, y, tabWidth, false, Theme.AccentOrange);
+        _tabRoutineRadio = Theme.CreateSegment("⛓ ROUTINE", pad + (tabWidth + 8) * 2, y, tabWidth, false, Theme.AccentGreen);
+        _tabRoutineRadio.Font = new Font("Segoe UI Semibold", 8.5f);
+        _tabRoutineRadio.UseMnemonic = false;
+        _tabRoutineRadio.CheckedChanged += (_, _) => { if (_tabRoutineRadio.Checked) SwitchTab(AppMode.Routine); };
+        Controls.Add(_tabRoutineRadio);
         _tabClickerRadio.Font = new Font("Segoe UI Semibold", 8.5f);
         _tabMacroRadio.Font   = new Font("Segoe UI Semibold", 8.5f);
         _tabClickerRadio.UseMnemonic = false;
@@ -541,6 +546,8 @@ public partial class MainForm
         _macroContainerPanel.Height = my;
         Controls.Add(_macroContainerPanel);
 
+        AddRoutinePanel(pad, innerPad, cardWidth, contentStartY);
+
         // --- Status Badge ---
         _statusLabel = new StatusBadgeLabel
         {
@@ -566,12 +573,19 @@ public partial class MainForm
             bool isClicker = mode == AppMode.AutoClicker;
 
             _tabClickerRadio.Checked = isClicker;
-            _tabMacroRadio.Checked   = !isClicker;
+            _tabMacroRadio.Checked   = mode == AppMode.Macro;
+            _tabRoutineRadio.Checked = mode == AppMode.Routine;
 
             _clickerContainerPanel.Visible = isClicker;
-            _macroContainerPanel.Visible   = !isClicker;
+            _macroContainerPanel.Visible   = mode == AppMode.Macro;
+            _routineContainerPanel.Visible = mode == AppMode.Routine;
 
-            int activeHeight = isClicker ? _clickerContainerPanel.Height : _macroContainerPanel.Height;
+            int activeHeight = mode switch
+            {
+                AppMode.Macro   => _macroContainerPanel.Height,
+                AppMode.Routine => _routineContainerPanel.Height,
+                _               => _clickerContainerPanel.Height,
+            };
             _statusLabel.Location = new Point(14, _clickerContainerPanel.Top + activeHeight + 8);
             _statusLabel.BringToFront();
 
