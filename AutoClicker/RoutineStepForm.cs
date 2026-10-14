@@ -40,6 +40,7 @@ public sealed class RoutineStepForm : Form
         MaximizeBox     = false;
         MinimizeBox     = false;
         ShowInTaskbar   = false;
+        TopMost         = true;
         StartPosition   = FormStartPosition.CenterParent;
         BackColor       = Theme.BgBase;
         ForeColor       = Theme.TextPrimary;
