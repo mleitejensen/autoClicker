@@ -24,10 +24,10 @@ public partial class MainForm
     private ComboBox _screenModeCombo = null!;
     private readonly System.Windows.Forms.Timer _screenReadoutTimer = new() { Interval = 300 };
 
-    private void AddScreenConditionsCard(int pad, int innerPad, int cardWidth, ref int my)
+    private void AddScreenConditionsCard(Panel parent, int pad, int innerPad, int cardWidth, ref int my)
     {
         var card = Theme.CreateCard(pad, my, cardWidth, 186, Theme.AccentYellow);
-        card.Controls.Add(Theme.CreateTagLabel("SCREEN CONDITIONS", innerPad, 10, Theme.AccentYellow));
+        card.Controls.Add(Theme.CreateTagLabel("BARS (ENERGY / HEALTH)", innerPad, 10, Theme.AccentYellow));
 
         string[] names = { "Energy", "Health" };
         for (int k = 0; k < names.Length; k++)
@@ -63,15 +63,14 @@ public partial class MainForm
 
         var tolLabel = new Label { Text = "Tolerance", Location = new Point(innerPad, 152), AutoSize = true, ForeColor = Theme.TextMuted, Font = new Font("Segoe UI", 8.5f) };
         _screenToleranceNumeric = Theme.CreateNumeric(innerPad + 62, 148, 56, 40, 0, 255, 5);
-        _screenModeCombo = Theme.CreateCombo(innerPad + 132, 148, 172);
+        _screenModeCombo = Theme.CreateCombo(0, 0, 10);
         _screenModeCombo.Items.AddRange(new object[] { "Wait until met", "Stop if not met" });
         _screenModeCombo.SelectedIndex = 0;
 
         card.Controls.Add(tolLabel);
         card.Controls.Add(_screenToleranceNumeric);
-        card.Controls.Add(_screenModeCombo);
 
-        _macroContainerPanel.Controls.Add(card);
+        parent.Controls.Add(card);
         my += card.Height + 10;
 
         _screenReadoutTimer.Tick += (_, _) => UpdateConditionReadouts();
@@ -103,7 +102,7 @@ public partial class MainForm
 
     private void UpdateConditionReadouts()
     {
-        if (!_macroContainerPanel.Visible || WindowState == FormWindowState.Minimized) return;
+        if (!_routineContainerPanel.Visible || WindowState == FormWindowState.Minimized) return;
 
         int tol = (int)_screenToleranceNumeric.Value;
         foreach (var row in _conditionRows)

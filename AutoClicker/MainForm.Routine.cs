@@ -67,6 +67,9 @@ public partial class MainForm
         _routineContainerPanel.Controls.Add(stepsCard);
         ry += stepsCard.Height + 10;
 
+        // --- Bars card ---
+        AddScreenConditionsCard(_routineContainerPanel, pad, innerPad, cardWidth, ref ry);
+
         // --- Run card ---
         var runCard = Theme.CreateCard(pad, ry, cardWidth, 150, Theme.AccentGreen);
         runCard.Controls.Add(Theme.CreateTagLabel("RUN", innerPad, 10, Theme.AccentGreen));
@@ -94,7 +97,7 @@ public partial class MainForm
 
         runCard.Controls.Add(new Label
         {
-            Text = "Bars use the Energy / Health regions set in Screen Conditions\n(Macro tab). The Play hotkey starts / stops the routine.",
+            Text = "Set each bar's region and color above, then use them in steps.\nThe Play hotkey starts / stops the routine.",
             Location = new Point(innerPad, 106), Size = new Size(cardWidth - innerPad * 2, 34),
             ForeColor = Theme.TextMuted, Font = new Font("Segoe UI", 7.75f), UseMnemonic = false,
         });

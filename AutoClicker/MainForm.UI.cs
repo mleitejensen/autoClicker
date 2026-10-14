@@ -505,10 +505,8 @@ public partial class MainForm
         _macroContainerPanel.Controls.Add(macroFileCard);
         my += macroFileCard.Height + 10;
 
-        // --- Card 4: Screen Conditions ---
-        AddScreenConditionsCard(pad, innerPad, cardWidth, ref my);
 
-        // --- Card 5: Macro Hotkeys ---
+        // --- Card 4: Macro Hotkeys ---
         var macroHotkeysCard = Theme.CreateCard(pad, my, cardWidth, 96, Theme.AccentPurple);
         var hkHeader = Theme.CreateTagLabel("HOTKEYS", innerPad, 10, Theme.AccentPurple);
         macroHotkeysCard.Controls.Add(hkHeader);

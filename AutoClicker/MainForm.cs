@@ -572,7 +572,7 @@ public partial class MainForm : Form
             _trayIcon.ShowBalloonTip(1000, "AutoClicker Macro", $"Playback started. Press {playHk} or {stopHk} to stop.", ToolTipIcon.Info);
         }
 
-        _macroPlayer.Play(_currentMacro, speed, repeat, pauseOnMove, BuildScreenGate());
+        _macroPlayer.Play(_currentMacro, speed, repeat, pauseOnMove);
     }
 
     private void StopMacroPlayback(string? reason = null)
