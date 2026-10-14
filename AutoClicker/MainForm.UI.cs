@@ -22,7 +22,7 @@ public partial class MainForm
         var wordmarkPanel = new FlowLayoutPanel
         {
             Location     = new Point(pad, y),
-            Size         = new Size(cardWidth, 28),
+            Size         = new Size(190, 24),
             BackColor    = Color.Transparent,
             WrapContents = false,
             Margin       = Padding.Empty,
@@ -34,7 +34,7 @@ public partial class MainForm
             Text        = "AUTO",
             AutoSize    = true,
             ForeColor   = Theme.TextPrimary,
-            Font        = new Font("Segoe UI", 14f, FontStyle.Bold),
+            Font        = new Font("Segoe UI", 12f, FontStyle.Bold),
             Margin      = new Padding(0, 0, 4, 0),
             UseMnemonic = false,
         };
@@ -43,7 +43,7 @@ public partial class MainForm
             Text        = "│",
             AutoSize    = true,
             ForeColor   = Theme.BorderHover,
-            Font        = new Font("Segoe UI", 12f),
+            Font        = new Font("Segoe UI", 10.5f),
             Margin      = new Padding(0, 2, 4, 0),
             UseMnemonic = false,
         };
@@ -52,7 +52,7 @@ public partial class MainForm
             Text        = "CLICKER",
             AutoSize    = true,
             ForeColor   = Theme.TextPrimary,
-            Font        = new Font("Segoe UI", 14f, FontStyle.Regular),
+            Font        = new Font("Segoe UI", 12f, FontStyle.Regular),
             Margin      = new Padding(0, 0, 0, 0),
             UseMnemonic = false,
         };
@@ -61,19 +61,20 @@ public partial class MainForm
         wordmarkPanel.Controls.Add(dividerLabel);
         wordmarkPanel.Controls.Add(wordClicker);
         Controls.Add(wordmarkPanel);
-        y += 28;
 
         var subtitleLabel = new Label
         {
-            Text        = "HIGH-PRECISION AUTOMATION & MACRO RECORDER",
-            Location    = new Point(pad + 1, y),
-            AutoSize    = true,
+            Text        = "AUTOMATION SUITE",
+            Location    = new Point(pad + cardWidth - 130, y + 6),
+            Size        = new Size(130, 16),
+            TextAlign   = ContentAlignment.MiddleRight,
+            AutoSize    = false,
             ForeColor   = Theme.TextMuted,
             Font        = new Font("Segoe UI", 7.5f, FontStyle.Bold),
             UseMnemonic = false,
         };
         Controls.Add(subtitleLabel);
-        y += 22;
+        y += 30;
 
         // --- Mode Selector (Tabs) ---
         const int tabWidth = (cardWidth - 16) / 3;

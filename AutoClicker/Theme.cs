@@ -84,6 +84,7 @@ public static class Theme
             Cursor                = Cursors.Hand,
             Font                  = new Font("Segoe UI Semibold", 8.75f),
             UseMnemonic           = false,
+            AccentColor           = accent,
         };
         radio.FlatAppearance.BorderSize         = 1;
         radio.FlatAppearance.BorderColor        = isChecked ? accent : BorderColor;

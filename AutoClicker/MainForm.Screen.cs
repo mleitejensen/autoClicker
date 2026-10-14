@@ -56,6 +56,10 @@ public partial class MainForm
             row.RegionButton.Click += (_, _) => PickConditionRegion(captured);
             row.ColorButton.Click  += (_, _) => PickConditionColor(captured);
 
+            row.RegionButton.MouseEnter += (_, _) => ShowRegionOutline(captured.Condition);
+            row.RegionButton.MouseLeave += (_, _) => HideRegionOutline();
+            row.RegionButton.Click      += (_, _) => HideRegionOutline();
+
             foreach (Control c in new Control[] { row.Enabled, minLabel, row.MinPercent, pctLabel, row.RegionButton, row.ColorButton, row.Readout })
                 card.Controls.Add(c);
             _conditionRows.Add(row);
@@ -75,6 +79,39 @@ public partial class MainForm
 
         _screenReadoutTimer.Tick += (_, _) => UpdateConditionReadouts();
         _screenReadoutTimer.Start();
+    }
+
+    private RegionOutlineForm? _regionOutline;
+
+    private void ShowRegionOutline(ScreenCondition c)
+    {
+        HideRegionOutline();
+        if (c.RegionWidth <= 0 || c.RegionHeight <= 0) return;
+        _regionOutline = new RegionOutlineForm(c.Region, Theme.AccentYellow);
+        _regionOutline.Show();
+    }
+
+    private void HideRegionOutline()
+    {
+        _regionOutline?.Close();
+        _regionOutline?.Dispose();
+        _regionOutline = null;
+    }
+
+    // Paints the button in the picked colour, with text colour chosen for contrast
+    private static void ApplyPickedColor(Button button, ScreenCondition c)
+    {
+        if (!c.HasColor) return;
+        var fill = c.FillColor;
+        bool lightFill = (fill.R * 299 + fill.G * 587 + fill.B * 114) / 1000 > 140;
+        var text = lightFill ? Color.Black : Color.White;
+        if (button.BackColor == fill && button.ForeColor == text) return;
+
+        button.BackColor = fill;
+        button.ForeColor = text;
+        button.FlatAppearance.BorderColor = ControlPaint.Light(fill, 0.4f);
+        button.FlatAppearance.MouseOverBackColor = ControlPaint.Light(fill, 0.2f);
+        button.FlatAppearance.MouseDownBackColor = ControlPaint.Dark(fill, 0.15f);
     }
 
     private void PickConditionRegion(ConditionRow row)
@@ -110,6 +147,7 @@ public partial class MainForm
             var c = row.Condition;
             row.RegionButton.Text = c.RegionWidth > 0 ? $"▭ {c.RegionWidth}×{c.RegionHeight}" : "▭ REGION";
             row.ColorButton.Text  = c.HasColor ? $"◉ #{c.FillColor.R:X2}{c.FillColor.G:X2}{c.FillColor.B:X2}" : "◉ COLOR";
+            ApplyPickedColor(row.ColorButton, c);
 
             double level = c.Measure(tol);
             if (level < 0)

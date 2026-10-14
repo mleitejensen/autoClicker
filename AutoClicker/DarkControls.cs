@@ -14,7 +14,45 @@ public sealed class DarkButton : Button
 /// <summary>Segmented tab radio without the focus rectangle.</summary>
 public sealed class SegmentRadioButton : RadioButton
 {
+    public Color AccentColor { get; set; } = Theme.AccentBlue;
+
+    public SegmentRadioButton()
+    {
+        SetStyle(ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint, true);
+        MouseEnter += (_, _) => Invalidate();
+        MouseLeave += (_, _) => Invalidate();
+    }
+
     protected override bool ShowFocusCues => false;
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        var g = e.Graphics;
+        bool hot = ClientRectangle.Contains(PointToClient(Cursor.Position));
+        var rect = new Rectangle(0, 0, Width - 1, Height - 1);
+
+        using (var back = new SolidBrush(Checked ? Theme.BgCard : (hot ? Theme.BgHover : Theme.BgPanel)))
+            g.FillRectangle(back, ClientRectangle);
+
+        if (Checked)
+        {
+            // Soft glow: accent layers fading from the border inwards, plus a bright underline
+            for (int i = 1; i <= 7; i++)
+            {
+                using var layer = new Pen(Color.FromArgb(70 - i * 9, AccentColor), 1);
+                g.DrawRectangle(layer, i, i, Width - 1 - i * 2, Height - 1 - i * 2);
+            }
+            using var line = new SolidBrush(AccentColor);
+            g.FillRectangle(line, 1, Height - 3, Width - 2, 2);
+        }
+
+        using (var border = new Pen(Checked ? AccentColor : (hot ? Theme.BorderHover : Theme.BorderColor)))
+            g.DrawRectangle(border, rect);
+
+        var textRect = new Rectangle(0, 0, Width, Checked ? Height - 2 : Height);
+        TextRenderer.DrawText(g, Text, Font, textRect, Checked ? Theme.TextPrimary : (hot ? Theme.TextTertiary : Theme.TextMuted),
+            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine);
+    }
 }
 
 public sealed class DarkCheckBox : CheckBox
