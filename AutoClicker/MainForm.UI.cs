@@ -179,7 +179,7 @@ public partial class MainForm
         var locHeader = Theme.CreateTagLabel("CLICK LOCATION", innerPad, 10, Theme.AccentPurple);
         locationCard.Controls.Add(locHeader);
 
-        _locationCursorRadio = new RadioButton
+        _locationCursorRadio = new DarkRadioButton
         {
             Text      = "Cursor",
             Location  = new Point(innerPad, 30),
@@ -190,7 +190,7 @@ public partial class MainForm
             FlatStyle = FlatStyle.Flat,
             Font      = new Font("Segoe UI", 8.5f),
         };
-        _locationFixedRadio = new RadioButton
+        _locationFixedRadio = new DarkRadioButton
         {
             Text      = "Fixed (X, Y)",
             Location  = new Point(innerPad + 80, 30),
@@ -453,12 +453,12 @@ public partial class MainForm
         macroSettingsCard.Controls.Add(playSettingsHeader);
 
         var speedLabel = new Label { Text = "Speed", Location = new Point(innerPad, 32), AutoSize = true, ForeColor = Theme.TextMuted, Font = new Font("Segoe UI", 8.5f) };
-        _macroSpeedCombo = Theme.CreateCombo(innerPad + 44, 28, 92);
+        _macroSpeedCombo = Theme.CreateCombo(innerPad + 44, 28, 80);
         _macroSpeedCombo.Items.AddRange(new object[] { "0.5x", "1.0x", "2.0x", "5.0x", "10.0x", "Max" });
         _macroSpeedCombo.SelectedIndex = 1;
 
-        var repeatLabel = new Label { Text = "Repeat", Location = new Point(innerPad + 148, 32), AutoSize = true, ForeColor = Theme.TextMuted, Font = new Font("Segoe UI", 8.5f) };
-        _macroRepeatCombo = Theme.CreateCombo(innerPad + 196, 28, 96);
+        var repeatLabel = new Label { Text = "Repeat", Location = new Point(innerPad + 140, 32), AutoSize = true, ForeColor = Theme.TextMuted, Font = new Font("Segoe UI", 8.5f) };
+        _macroRepeatCombo = Theme.CreateCombo(innerPad + 186, 28, 118);
         _macroRepeatCombo.Items.AddRange(new object[] { "1x", "2x", "3x", "5x", "10x", "Continuous" });
         _macroRepeatCombo.SelectedIndex = 0;
 

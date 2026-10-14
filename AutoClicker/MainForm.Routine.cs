@@ -46,6 +46,7 @@ public partial class MainForm
             ItemHeight    = 22,
             IntegralHeight = false,
         };
+        _routineList.HandleCreated += (_, _) => NativeMethods.SetWindowTheme(_routineList.Handle, "DarkMode_Explorer", null);
         _routineList.DrawItem += DrawRoutineItem;
         _routineList.DoubleClick += (_, _) => EditRoutineStep();
 

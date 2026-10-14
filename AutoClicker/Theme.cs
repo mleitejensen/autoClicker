@@ -70,7 +70,7 @@ public static class Theme
     public static RadioButton CreateSegment(string text, int x, int y, int width, bool isChecked, Color? checkedAccent = null)
     {
         var accent = checkedAccent ?? AccentBlue;
-        var radio = new RadioButton
+        var radio = new SegmentRadioButton
         {
             Text                  = text,
             Appearance            = Appearance.Button,
@@ -102,7 +102,7 @@ public static class Theme
 
     public static ComboBox CreateCombo(int x, int y, int width)
     {
-        var combo = new ComboBox
+        var combo = new DarkComboBox
         {
             Location      = new Point(x, y),
             Size          = new Size(width, 28),
@@ -144,7 +144,7 @@ public static class Theme
 
     public static NumericUpDown CreateNumeric(
         int x, int y, int width, decimal value,
-        decimal min = 10, decimal max = 60000, decimal increment = 10) => new()
+        decimal min = 10, decimal max = 60000, decimal increment = 10) => new DarkNumericUpDown()
     {
         Location    = new Point(x, y),
         Size        = new Size(width, 26),
@@ -154,13 +154,13 @@ public static class Theme
         Increment   = increment,
         BackColor   = BgCard,
         ForeColor   = TextPrimary,
-        BorderStyle = BorderStyle.FixedSingle,
+        BorderStyle = BorderStyle.None,
         Font        = new Font("Segoe UI", 8.75f),
     };
 
     public static CheckBox CreateCheckBox(string text, int x, int y, bool isChecked = false)
     {
-        var cb = new CheckBox
+        var cb = new DarkCheckBox
         {
             Text      = text,
             Location  = new Point(x, y),
@@ -185,7 +185,7 @@ public static class Theme
         Color initialFore   = outlineMode ? (color == Field || color == BgCard ? TextTertiary : color) : (color == AccentGreen ? Color.Black : Color.White);
         Color initialBack   = outlineMode ? BgCard : color;
 
-        var button = new Button
+        var button = new DarkButton
         {
             Text                  = text,
             Location              = new Point(x, y),
