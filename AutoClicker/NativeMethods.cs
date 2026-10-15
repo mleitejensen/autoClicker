@@ -215,6 +215,18 @@ internal static class NativeMethods
         SendInput(1, inputs, Marshal.SizeOf<INPUT>());
     }
 
+    /// <summary>
+    /// Puts the cursor at a screen position in a way games notice. Setting the position alone doesn't generate mouse
+    /// input, and games like Roblox only pick up the cursor after real mouse movement, so a 1-pixel move and back follows.
+    /// </summary>
+    public static void MoveCursorForGame(int x, int y)
+    {
+        SetCursorPos(x, y);
+        SendMouseInput(MOUSEEVENTF_MOVE, 1, 0);
+        System.Threading.Thread.Sleep(1);
+        SendMouseInput(MOUSEEVENTF_MOVE, -1, 0);
+    }
+
     public static void SendKeyInput(ushort scanCode, uint flags, ushort vkCode = 0)
     {
         uint dwFlags = flags;

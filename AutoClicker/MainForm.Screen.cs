@@ -23,6 +23,7 @@ public partial class MainForm
     private NumericUpDown _screenToleranceNumeric = null!;
     private ComboBox _screenModeCombo = null!;
     private readonly System.Windows.Forms.Timer _screenReadoutTimer = new() { Interval = 300 };
+    private readonly ToolTip _conditionColorTip = new();
 
     private void AddScreenConditionsCard(Panel parent, int pad, int innerPad, int cardWidth, ref int my)
     {
@@ -55,6 +56,7 @@ public partial class MainForm
             row.Enabled.CheckedChanged  += (_, _) => captured.Condition.Enabled = captured.Enabled.Checked;
             row.RegionButton.Click += (_, _) => PickConditionRegion(captured);
             row.ColorButton.Click  += (_, _) => PickConditionColor(captured);
+            row.ColorButton.MouseUp += (_, e) => { if (e.Button == MouseButtons.Right) ClearConditionColors(captured); };
 
             row.RegionButton.MouseEnter += (_, _) => ShowRegionOutline(captured.Condition);
             row.RegionButton.MouseLeave += (_, _) => HideRegionOutline();
@@ -114,6 +116,23 @@ public partial class MainForm
         button.FlatAppearance.MouseDownBackColor = ControlPaint.Dark(fill, 0.15f);
     }
 
+    // Shows the primary color's hex, plus a count of any extra colors picked for recoloring bars
+    private static string ColorButtonText(ScreenCondition c)
+    {
+        if (!c.HasColor) return "◉ COLOR";
+        string hex = $"#{c.FillColor.R:X2}{c.FillColor.G:X2}{c.FillColor.B:X2}";
+        return c.ExtraColorsArgb.Count == 0 ? $"◉ {hex}" : $"◉ {hex}+{c.ExtraColorsArgb.Count}";
+    }
+
+    private static string ColorButtonTip(ScreenCondition c)
+    {
+        const string hint = "Click to add a fill color - click again for each shade the bar uses " +
+                             "(e.g. its low-health yellow/red stage). Right-click to clear.";
+        if (!c.HasColor) return hint;
+        var hexes = c.AllColors.Select(col => $"#{col.R:X2}{col.G:X2}{col.B:X2}");
+        return $"Colors: {string.Join(", ", hexes)}\n{hint}";
+    }
+
     private void PickConditionRegion(ConditionRow row)
     {
         using var picker = new RegionPickerForm();
@@ -132,9 +151,17 @@ public partial class MainForm
             // Give the overlay time to disappear before sampling the real screen
             Application.DoEvents();
             Thread.Sleep(120);
-            row.Condition.FillColor = ScreenCondition.SamplePixel(picker.SelectedPoint.Value);
+            // Adds rather than replaces, so bars that recolor as they deplete (e.g. a health bar
+            // that goes green -> yellow -> red) can have every stage's color picked in turn.
+            row.Condition.AddColor(ScreenCondition.SamplePixel(picker.SelectedPoint.Value));
             UpdateConditionReadouts();
         }
+    }
+
+    private void ClearConditionColors(ConditionRow row)
+    {
+        row.Condition.ClearColors();
+        UpdateConditionReadouts();
     }
 
     private void UpdateConditionReadouts()
@@ -146,8 +173,9 @@ public partial class MainForm
         {
             var c = row.Condition;
             row.RegionButton.Text = c.RegionWidth > 0 ? $"▭ {c.RegionWidth}×{c.RegionHeight}" : "▭ REGION";
-            row.ColorButton.Text  = c.HasColor ? $"◉ #{c.FillColor.R:X2}{c.FillColor.G:X2}{c.FillColor.B:X2}" : "◉ COLOR";
+            row.ColorButton.Text  = ColorButtonText(c);
             ApplyPickedColor(row.ColorButton, c);
+            _conditionColorTip.SetToolTip(row.ColorButton, ColorButtonTip(c));
 
             double level = c.Measure(tol);
             if (level < 0)
