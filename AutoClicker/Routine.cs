@@ -20,6 +20,7 @@ public enum RoutineStepType
     ReadKeys,
     TimingGame,
     RingGame,
+    HoldKeyFor,
 }
 
 /// <summary>One extra bar condition beyond a step's primary one (see <see cref="RoutineStep.ExtraConditions"/>).</summary>
@@ -129,6 +130,7 @@ public sealed class RoutineStep
         RoutineStepType.ReadKeys     => ReadWidth > 0 ? $"Read {(ReadArrows ? "arrows" : "keys")} at {ReadX},{ReadY} ({ReadWidth}×{ReadHeight}) and press them" : $"Read {(ReadArrows ? "arrows" : "keys")} from screen (no region set)",
         RoutineStepType.TimingGame   => $"Timing game: press {Key} when the marker is on the target{(HitCount > 0 ? $" ({HitCount}x)" : "")}",
         RoutineStepType.RingGame     => $"Ring game: click balls as their ring closes{(HitCount > 0 ? $" ({HitCount}x)" : "")}",
+        RoutineStepType.HoldKeyFor   => $"Hold {Key} for {Milliseconds / 1000.0:0.##}s",
         _ => Type.ToString(),
     };
 
@@ -275,6 +277,14 @@ public sealed class RoutineRunner : IDisposable
 
                         case RoutineStepType.TimingGame:
                             if (!RunTimingGame(step, tolerance, token, text => StepChanged?.Invoke(i, steps.Count, loop, text), out error)) return;
+                            break;
+
+                        case RoutineStepType.HoldKeyFor:
+                            {
+                                // Released even if the routine is stopped while the key is down
+                                var release = InputSimulator.HoldKey(step.Key, false, false, false);
+                                try { Sleep(step.Milliseconds, token); } finally { release(); }
+                            }
                             break;
 
                         case RoutineStepType.RingGame:

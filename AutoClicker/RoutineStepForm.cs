@@ -22,6 +22,7 @@ public sealed class RoutineStepForm : Form
         "Read keys from screen and press them",
         "Timing game: press a key when the marker is on the target",
         "Ring game: click balls as their ring closes",
+        "Hold a key for a set time",
     };
 
     private const int Pad = 14;
@@ -456,7 +457,7 @@ public sealed class RoutineStepForm : Form
             condBottom = rowY + 2 + 24 + 14;
         }
 
-        bool showKey = type is RoutineStepType.HoldKeyUntil or RoutineStepType.PressKey or RoutineStepType.TimingGame;
+        bool showKey = type is RoutineStepType.HoldKeyUntil or RoutineStepType.PressKey or RoutineStepType.TimingGame or RoutineStepType.HoldKeyFor;
         bool keyWithCond = cond && type == RoutineStepType.HoldKeyUntil;
         bool timing = type == RoutineStepType.TimingGame;
         int keyY = keyWithCond ? condBottom : timing ? 70 + 36 : 74;
@@ -466,7 +467,7 @@ public sealed class RoutineStepForm : Form
 
         Show(_macroControls, type == RoutineStepType.RunMacro);
         Show(_clickControls, type == RoutineStepType.ClickAt);
-        Show(_delayControls, type == RoutineStepType.Delay);
+        Show(_delayControls, type is RoutineStepType.Delay or RoutineStepType.HoldKeyFor);
 
         bool readKeys = type == RoutineStepType.ReadKeys;
         bool ring = type == RoutineStepType.RingGame;
